@@ -1,26 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F6F8FB; /* Fondo soft de Vepagos */
+  --foreground: #001F60; /* Azul Navy de Vepagos */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  
+  /* Vepagos Colors */
+  --color-vepagos-green: #00CE7C;
+  --color-vepagos-green-deep: #00B36C;
+  --color-vepagos-navy: #001F60;
+  --color-vepagos-pale: #E5E9F2;
+  --color-vepagos-soft: #F6F8FB;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Vepagos Border Radii */
+  --radius-card: 14px;
+  --radius-input: 10px;
+  --radius-pill: 999px;
+
+  /* Fonts */
+  --font-barlow: var(--font-barlow), sans-serif;
+  --font-barlow-condensed: var(--font-barlow-condensed), sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-barlow);
 }
