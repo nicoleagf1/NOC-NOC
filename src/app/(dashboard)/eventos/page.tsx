@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -10,28 +11,117 @@ import {
   CheckCircle2,
   Search,
   Filter,
-  ChevronDown,
   Eye,
   MoreVertical,
   ArrowDown,
   ListTodo,
-  Calendar
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
-const eventosList = [
-  { id: 1, date: "15 MAY 2024", time: "09:42:15 AM", type: "ALERTA", source: "PROMETHEUS", sourceCol: "text-blue-600 bg-blue-50", host: "SRV-API-PAGOS-01", desc: "Uso de CPU mayor al 90%", sev: "CRÍTICO", sevVar: "danger" },
-  { id: 2, date: "15 MAY 2024", time: "09:32:08 AM", type: "CAÍDA", source: "UPTIME KUMA", sourceCol: "text-green-600 bg-green-50", host: "GATEWAY DE PAGOS", desc: "Servicio no disponible (Down)", sev: "CRÍTICO", sevVar: "danger" },
-  { id: 3, date: "15 MAY 2024", time: "09:28:41 AM", type: "RESOLUCIÓN", source: "PROMETHEUS", sourceCol: "text-blue-600 bg-blue-50", host: "SRV-DB-02", desc: "Uso de memoria normalizado", sev: "RESUELTO", sevVar: "success" },
-  { id: 4, date: "15 MAY 2024", time: "09:15:22 AM", type: "ALERTA", source: "PROMETHEUS", sourceCol: "text-blue-600 bg-blue-50", host: "SRV-FILES-01", desc: "Latencia de disco elevada", sev: "ADVERTENCIA", sevVar: "warning" },
-  { id: 5, date: "15 MAY 2024", time: "09:05:11 AM", type: "MANTENIMIENTO", source: "SISTEMA", sourceCol: "text-purple-600 bg-purple-50", host: "MÓDULO DE FACTURACIÓN", desc: "Inicio de ventana de mantenimiento", sev: "INFORMATIVO", sevVar: "info" },
-  { id: 6, date: "15 MAY 2024", time: "08:58:33 AM", type: "ALERTA", source: "UPTIME KUMA", sourceCol: "text-green-600 bg-green-50", host: "PORTAL TRANSACCIONAL", desc: "Tiempo de respuesta elevado", sev: "ADVERTENCIA", sevVar: "warning" },
-  { id: 7, date: "15 MAY 2024", time: "08:45:09 AM", type: "RESOLUCIÓN", source: "SISTEMA", sourceCol: "text-purple-600 bg-purple-50", host: "SRV-MAIL-01", desc: "Reinicio automático completado", sev: "RESUELTO", sevVar: "success" },
-  { id: 8, date: "15 MAY 2024", time: "08:30:02 AM", type: "ALERTA", source: "PROMETHEUS", sourceCol: "text-blue-600 bg-blue-50", host: "SRV-APP-03", desc: "Conexiones activas elevadas", sev: "ADVERTENCIA", sevVar: "warning" },
-];
-
 export default function EventosPage() {
+  const [eventosList, setEventosList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Estados de los filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("TODOS");
+  const [filterSource, setFilterSource] = useState("TODAS");
+  const [filterSev, setFilterSev] = useState("TODAS");
+
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // KPIs State
+  const [kpis, setKpis] = useState({
+    totales: 0,
+    criticos: 0,
+    advertencias: 0,
+    informativos: 0,
+    resueltos: 0,
+  });
+
+  useEffect(() => {
+    fetchEvents();
+    // Podríamos poner un polling aquí para que se actualice solo
+    const interval = setInterval(fetchEvents, 30000); // 30 segundos
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      const res = await fetch("/api/events");
+      if (res.ok) {
+        const data = await res.json();
+        setEventosList(data);
+        calculateKPIs(data);
+      }
+    } catch (e) {
+      console.error("Error fetching events:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const calculateKPIs = (events: any[]) => {
+    let crit = 0, adv = 0, info = 0, resueltos = 0;
+    events.forEach(evt => {
+      if (evt.sev === 'CRÍTICO') crit++;
+      else if (evt.sev === 'ADVERTENCIA') adv++;
+      else if (evt.sev === 'RESUELTO') resueltos++;
+      else info++;
+    });
+
+    setKpis({
+      totales: events.length,
+      criticos: crit,
+      advertencias: adv,
+      informativos: info,
+      resueltos: resueltos
+    });
+  };
+
+  const calcPercentage = (val: number) => {
+    if (kpis.totales === 0) return "0.00%";
+    return ((val / kpis.totales) * 100).toFixed(2) + "%";
+  };
+
+  // Filtrado lógico en el cliente
+  const filteredEvents = useMemo(() => {
+    return eventosList.filter(evt => {
+      const matchesSearch = 
+        (evt.host && evt.host.toLowerCase().includes(searchTerm.toLowerCase())) || 
+        (evt.desc && evt.desc.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchesType = filterType === "TODOS" || evt.type === filterType;
+      const matchesSource = filterSource === "TODAS" || evt.source === filterSource;
+      const matchesSev = filterSev === "TODAS" || evt.sev === filterSev;
+
+      return matchesSearch && matchesType && matchesSource && matchesSev;
+    });
+  }, [eventosList, searchTerm, filterType, filterSource, filterSev]);
+
+  // Paginación lógica
+  const totalItems = filteredEvents.length;
+  const totalPages = Math.ceil(totalItems / rowsPerPage) || 1;
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  
+  const startIndex = (safeCurrentPage - 1) * rowsPerPage;
+  const currentItems = filteredEvents.slice(startIndex, startIndex + rowsPerPage);
+
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setFilterType("TODOS");
+    setFilterSource("TODAS");
+    setFilterSev("TODAS");
+    setCurrentPage(1);
+  };
+
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 animate-in fade-in duration-500">
       {/* Header and Filters */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
@@ -51,37 +141,61 @@ export default function EventosPage() {
             <input
               type="text"
               placeholder="Buscar evento..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-[var(--radius-input)] text-xs focus:outline-none focus:ring-1 focus:ring-vepagos-green transition-all"
             />
           </div>
           
-          <div className="flex items-center border border-gray-200 bg-white rounded-[var(--radius-input)] px-3 py-2 w-36 cursor-pointer text-xs">
-            <span className="font-bold text-gray-500 mr-2 uppercase text-[10px]">Tipo:</span>
-            <span className="font-bold text-vepagos-navy flex-1">TODOS</span>
-            <ChevronDown className="w-3 h-3 text-gray-400" />
+          <div className="relative">
+            <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest absolute -top-2 left-2 bg-white px-1 z-10 pointer-events-none">Tipo</label>
+            <select 
+              value={filterType}
+              onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
+              className="appearance-none border border-gray-200 bg-white rounded-[var(--radius-input)] px-3 py-2 w-36 cursor-pointer text-xs font-bold text-vepagos-navy focus:outline-none focus:border-vepagos-green"
+            >
+              <option value="TODOS">TODOS</option>
+              <option value="ALERTA">ALERTA</option>
+              <option value="SISTEMA">SISTEMA</option>
+              <option value="BACKUP">BACKUP</option>
+            </select>
           </div>
           
-          <div className="flex items-center border border-gray-200 bg-white rounded-[var(--radius-input)] px-3 py-2 w-36 cursor-pointer text-xs">
-            <span className="font-bold text-gray-500 mr-2 uppercase text-[10px]">Fuente:</span>
-            <span className="font-bold text-vepagos-navy flex-1">TODAS</span>
-            <ChevronDown className="w-3 h-3 text-gray-400" />
+          <div className="relative">
+            <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest absolute -top-2 left-2 bg-white px-1 z-10 pointer-events-none">Fuente</label>
+            <select 
+              value={filterSource}
+              onChange={(e) => { setFilterSource(e.target.value); setCurrentPage(1); }}
+              className="appearance-none border border-gray-200 bg-white rounded-[var(--radius-input)] px-3 py-2 w-36 cursor-pointer text-xs font-bold text-vepagos-navy focus:outline-none focus:border-vepagos-green"
+            >
+              <option value="TODAS">TODAS</option>
+              <option value="PROMETHEUS">PROMETHEUS</option>
+              <option value="UPTIME KUMA">UPTIME KUMA</option>
+              <option value="SISTEMA">SISTEMA</option>
+            </select>
           </div>
 
-          <div className="flex items-center border border-gray-200 bg-white rounded-[var(--radius-input)] px-3 py-2 w-36 cursor-pointer text-xs">
-            <span className="font-bold text-gray-500 mr-2 uppercase text-[10px]">Sev:</span>
-            <span className="font-bold text-vepagos-navy flex-1">TODAS</span>
-            <ChevronDown className="w-3 h-3 text-gray-400" />
+          <div className="relative">
+            <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest absolute -top-2 left-2 bg-white px-1 z-10 pointer-events-none">Severidad</label>
+            <select 
+              value={filterSev}
+              onChange={(e) => { setFilterSev(e.target.value); setCurrentPage(1); }}
+              className="appearance-none border border-gray-200 bg-white rounded-[var(--radius-input)] px-3 py-2 w-36 cursor-pointer text-xs font-bold text-vepagos-navy focus:outline-none focus:border-vepagos-green"
+            >
+              <option value="TODAS">TODAS</option>
+              <option value="CRÍTICO">CRÍTICO</option>
+              <option value="ADVERTENCIA">ADVERTENCIA</option>
+              <option value="INFORMATIVO">INFORMATIVO</option>
+              <option value="RESUELTO">RESUELTO</option>
+            </select>
           </div>
 
-          <div className="flex items-center border border-gray-200 bg-white rounded-[var(--radius-input)] px-3 py-2 w-40 cursor-pointer text-xs">
-            <Calendar className="w-3 h-3 text-gray-400 mr-2" />
-            <span className="font-bold text-vepagos-navy flex-1 text-[10px]">ÚLT. 30 DÍAS</span>
-            <ChevronDown className="w-3 h-3 text-gray-400" />
-          </div>
-
-          <button className="flex items-center border border-vepagos-navy text-vepagos-navy hover:bg-vepagos-navy hover:text-white px-4 py-2 h-[34px] rounded-[var(--radius-pill)] text-xs font-bold transition-colors uppercase">
+          <button 
+            onClick={handleResetFilters}
+            className="flex items-center border border-vepagos-navy text-vepagos-navy hover:bg-vepagos-navy hover:text-white px-4 py-2 h-[34px] rounded-[var(--radius-pill)] text-xs font-bold transition-colors uppercase"
+          >
             <Filter className="w-3 h-3 mr-2" />
-            Filtrar
+            Limpiar
           </button>
         </div>
       </div>
@@ -96,7 +210,7 @@ export default function EventosPage() {
               <ListTodo className="w-5 h-5 text-indigo-500" />
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-vepagos-navy leading-none">1,245</div>
+              <div className="text-3xl font-bold text-vepagos-navy leading-none">{kpis.totales}</div>
             </div>
           </div>
           <div className="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest mt-2">Últimos 30 días</div>
@@ -110,10 +224,10 @@ export default function EventosPage() {
               <XCircle className="w-5 h-5 text-red-500" />
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-red-500 leading-none">42</div>
+              <div className="text-3xl font-bold text-red-500 leading-none">{kpis.criticos}</div>
             </div>
           </div>
-          <div className="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest mt-2">3.37% Del Total</div>
+          <div className="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest mt-2">{calcPercentage(kpis.criticos)} Del Total</div>
         </Card>
 
         {/* Advertencias */}
@@ -124,10 +238,10 @@ export default function EventosPage() {
               <BellRing className="w-5 h-5 text-amber-500" />
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-amber-500 leading-none">156</div>
+              <div className="text-3xl font-bold text-amber-500 leading-none">{kpis.advertencias}</div>
             </div>
           </div>
-          <div className="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest mt-2">12.53% Del Total</div>
+          <div className="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest mt-2">{calcPercentage(kpis.advertencias)} Del Total</div>
         </Card>
 
         {/* Informativos */}
@@ -138,10 +252,10 @@ export default function EventosPage() {
               <Info className="w-5 h-5 text-blue-500" />
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-blue-500 leading-none">890</div>
+              <div className="text-3xl font-bold text-blue-500 leading-none">{kpis.informativos}</div>
             </div>
           </div>
-          <div className="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest mt-2">71.48% Del Total</div>
+          <div className="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest mt-2">{calcPercentage(kpis.informativos)} Del Total</div>
         </Card>
 
         {/* Resueltos */}
@@ -152,16 +266,16 @@ export default function EventosPage() {
               <CheckCircle2 className="w-5 h-5 text-vepagos-green" />
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-vepagos-green leading-none">157</div>
+              <div className="text-3xl font-bold text-vepagos-green leading-none">{kpis.resueltos}</div>
             </div>
           </div>
-          <div className="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest mt-2">12.61% Del Total</div>
+          <div className="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest mt-2">{calcPercentage(kpis.resueltos)} Del Total</div>
         </Card>
       </div>
 
       {/* Events Table Section */}
       <div className="bg-white rounded-[var(--radius-card)] border border-gray-100 shadow-sm overflow-hidden mt-6">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto min-h-[300px]">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-white border-b border-gray-100">
@@ -177,7 +291,11 @@ export default function EventosPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {eventosList.map((evt) => (
+              {isLoading ? (
+                <tr><td colSpan={7} className="p-8 text-center text-gray-500 text-sm">Cargando eventos...</td></tr>
+              ) : currentItems.length === 0 ? (
+                <tr><td colSpan={7} className="p-12 text-center text-sm font-bold text-gray-400">No hay eventos que coincidan con los filtros aplicados.</td></tr>
+              ) : currentItems.map((evt) => (
                 <tr key={evt.id} className="hover:bg-gray-50 transition-colors group">
                   <td className="px-6 py-3">
                     <div className="text-xs font-bold text-vepagos-navy uppercase">{evt.date}</div>
@@ -187,7 +305,7 @@ export default function EventosPage() {
                     <span className="text-[10px] font-bold text-gray-500">{evt.type}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-[9px] font-bold px-2 py-1 rounded uppercase ${evt.sourceCol}`}>{evt.source}</span>
+                    <span className={`text-[9px] font-bold px-2 py-1 rounded uppercase ${evt.sourceCol || 'bg-gray-100'}`}>{evt.source}</span>
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs font-bold text-vepagos-navy uppercase">{evt.host}</span>
@@ -215,22 +333,60 @@ export default function EventosPage() {
         </div>
 
         {/* Pagination */}
-        <div className="p-4 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-gray-500 uppercase tracking-widest">
-          <div>Mostrando 1 a 8 de 1,245 Eventos</div>
-          <div className="flex items-center space-x-2">
-            <button className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-gray-400"><ChevronDown className="w-4 h-4 rotate-90" /></button>
-            <button className="w-7 h-7 flex items-center justify-center border border-vepagos-green bg-vepagos-green/10 text-vepagos-green rounded">1</button>
-            <button className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded">2</button>
-            <button className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-gray-400"><ChevronDown className="w-4 h-4 -rotate-90" /></button>
-          </div>
-          <div className="flex items-center">
-            <span className="mr-2">Filas por página</span>
-            <div className="flex items-center justify-between border border-gray-200 rounded px-2 py-1 w-14 cursor-pointer">
-              <span className="font-bold text-vepagos-navy">10</span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
+        {!isLoading && (
+          <div className="p-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between text-xs font-bold text-gray-500 uppercase tracking-widest gap-4">
+            <div>
+              Mostrando {totalItems === 0 ? 0 : startIndex + 1} a {Math.min(startIndex + rowsPerPage, totalItems)} de {totalItems} Eventos
+            </div>
+            <div className="flex items-center space-x-2">
+              <button 
+                onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+                disabled={safeCurrentPage === 1}
+                className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent rounded text-gray-400"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button 
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+                    safeCurrentPage === page 
+                      ? "border border-vepagos-green bg-vepagos-green/10 text-vepagos-green" 
+                      : "hover:bg-gray-100"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              
+              <button 
+                onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+                disabled={safeCurrentPage === totalPages || totalPages === 0}
+                className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent rounded text-gray-400"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex items-center">
+              <span className="mr-2">Filas por página</span>
+              <div className="relative">
+                <select 
+                  value={rowsPerPage}
+                  onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                  className="appearance-none border border-gray-200 rounded px-2 py-1 pr-6 cursor-pointer font-bold text-vepagos-navy bg-white focus:outline-none focus:border-vepagos-green"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <ChevronDown className="w-3 h-3 text-gray-400 absolute right-1.5 top-1.5 pointer-events-none" />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

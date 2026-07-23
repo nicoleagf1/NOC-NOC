@@ -36,6 +36,8 @@ export interface ServiceStatusDTO {
   status: "up" | "down" | "degraded";
   uptimePercent: number;
   latencyMs: number;
+  isMaintenance?: boolean;
+  history?: { time: string; value: number }[]; // ECG data
 }
 
 export interface SystemResourceDTO {

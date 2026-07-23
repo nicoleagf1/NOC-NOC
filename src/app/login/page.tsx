@@ -1,138 +1,280 @@
-import Image from "next/image";
-import Link from "next/link";
-import { User, Lock, Eye, HeadphonesIcon, Mail } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
-  return (
-    <div className="min-h-screen bg-[#001235] text-white flex flex-col items-center justify-center relative overflow-hidden font-barlow">
-      {/* Background decoration elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#00CE7C] opacity-20 blur-[120px] rounded-full"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#008F6B] opacity-20 blur-[120px] rounded-full"></div>
-      </div>
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-      <div className="z-10 flex flex-col items-center w-full max-w-md px-4">
-        {/* Logo and Titles */}
-        <div className="mb-8 flex flex-col items-center">
+  // States para Formulario de Login
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // States para Cambio Obligatorio de Clave
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Credenciales inválidas");
+        return;
+      }
+
+      if (data.mustChangePassword) {
+        setRequiresPasswordChange(true);
+        setUserId(data.userId);
+      } else if (data.success) {
+        router.push("/");
+      }
+    } catch (err: any) {
+      setError("Error de red. Intenta nuevamente.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    if (newPassword !== confirmPassword) {
+      setError("Las contraseñas no coinciden");
+      setIsLoading(false);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, newPassword }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "No se pudo cambiar la contraseña");
+        return;
+      }
+
+      if (data.success) {
+        router.push("/");
+      }
+    } catch (err: any) {
+      setError("Error de red. Intenta nuevamente.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#001F60] to-[#0B2F7F] flex flex-col items-center justify-between font-barlow relative selection:bg-[#00CE7C] selection:text-[#001F60]">
+
+      {/* Contenedor principal centrado */}
+      <div className="flex-1 flex flex-col items-center justify-center w-full px-4 mt-16 mb-8">
+
+        {/* Logo */}
+        <div className="mb-6 flex flex-col items-center">
           <img
-            src="/logo2.png"
+            src="/logo.png"
             alt="Vepagos Logo"
-            className="w-auto h-auto max-w-[280px] max-h-[90px] mb-6 object-contain"
+            className="w-auto h-auto max-w-[380px] max-h-[300px] mb-8 object-contain"
           />
-          <h1 className="text-3xl font-barlow-condensed tracking-widest font-semibold text-white">
+          <h1 className="text-[48px] font-barlow-condensed tracking-[2px] font-bold text-white leading-none mb-1">
             NOC-NOC
           </h1>
-          <p className="text-sm tracking-[0.2em] text-gray-300">
-            CENTRO DE MONITOREO
+          <p className="text-[20px] font-barlow text-[#E5E9F2]">
+            Centro de Monitoreo
           </p>
         </div>
 
         {/* Login Card */}
-        <Card className="w-full p-8 shadow-2xl">
-          <div className="flex flex-col items-center mb-6">
-            <h2 className="text-2xl font-barlow-condensed font-bold text-vepagos-navy mb-2 tracking-wide uppercase">
-              Iniciar Sesión
-            </h2>
-            <div className="h-1 w-8 bg-vepagos-green rounded-full mb-4"></div>
-            <p className="text-sm text-gray-500 text-center">
-              Ingresa tus credenciales para acceder<br />al sistema de monitoreo NOC-NOC.
-            </p>
-          </div>
+        <div className="w-full max-w-[520px] bg-[#FFFFFF] rounded-[14px] p-10 shadow-sm relative">
 
-          <form className="space-y-5">
-            {/* Username Input */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-vepagos-navy uppercase">
-                Usuario
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
+          {error && (
+            <div className="mb-6 bg-red-50 text-red-600 border border-red-200 text-sm px-4 py-3 rounded-[10px] flex items-center">
+              <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {!requiresPasswordChange ? (
+            // PASO 1: LOGIN NORMAL
+            <form className="space-y-6" onSubmit={handleLogin}>
+              {/* Campo Usuario */}
+              <div className="flex flex-col space-y-2">
+                <label className="text-[14px] font-barlow-condensed font-bold text-[#001F60] uppercase tracking-wide">
+                  USUARIO
+                </label>
                 <input
                   type="text"
-                  placeholder="Ingresa tu usuario"
-                  className="w-full pl-10 pr-3 py-2.5 bg-white border border-gray-200 rounded-[var(--radius-input)] text-sm focus:outline-none focus:ring-2 focus:ring-vepagos-green focus:border-transparent transition-all text-vepagos-navy"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Ingrese su usuario"
+                  className="w-full h-[52px] px-4 bg-white border-[1.5px] border-[#E5E9F2] rounded-[10px] text-[16px] text-[#001F60] placeholder:text-[#6E7B99] focus:outline-none focus:border-[#00CE7C] transition-colors duration-150"
                 />
               </div>
-            </div>
 
-            {/* Password Input */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-vepagos-navy uppercase">
-                Contraseña
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+              {/* Campo Contraseña */}
+              <div className="flex flex-col space-y-2">
+                <label className="text-[14px] font-barlow-condensed font-bold text-[#001F60] uppercase tracking-wide">
+                  CONTRASEÑA
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Ingrese su contraseña"
+                    className="w-full h-[52px] pl-4 pr-12 bg-white border-[1.5px] border-[#E5E9F2] rounded-[10px] text-[16px] text-[#001F60] placeholder:text-[#6E7B99] focus:outline-none focus:border-[#00CE7C] transition-colors duration-150"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center text-[#6E7B99] hover:text-[#001F60] transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
                 </div>
-                <input
-                  type="password"
-                  placeholder="Ingresa tu contraseña"
-                  className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-200 rounded-[var(--radius-input)] text-sm focus:outline-none focus:ring-2 focus:ring-vepagos-green focus:border-transparent transition-all text-vepagos-navy"
-                />
+              </div>
+
+              {/* Extras (Recordarme & Olvidó Contraseña) */}
+              <div className="flex items-center justify-between pt-1">
+                <label className="flex items-center space-x-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded-[4px] border-[#E5E9F2] text-[#00CE7C] focus:ring-[#00CE7C] cursor-pointer"
+                  />
+                  <span className="text-[14px] text-[#6E7B99] group-hover:text-[#001F60] transition-colors">
+                    Recordarme
+                  </span>
+                </label>
+                <a href="#" className="text-[14px] text-[#001F60] hover:text-[#00CE7C] transition-colors font-medium">
+                  ¿Olvidó su contraseña?
+                </a>
+              </div>
+
+              {/* Botón Iniciar Sesión */}
+              <div className="pt-4">
                 <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full h-[52px] bg-[#00CE7C] hover:bg-[#00B36C] text-[#001F60] rounded-[999px] font-barlow-condensed font-bold text-[18px] uppercase tracking-wider transition-colors duration-150 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  <Eye className="h-5 w-5 text-gray-400 hover:text-vepagos-navy transition-colors" />
+                  {isLoading ? "Validando..." : "INICIAR SESIÓN"}
                 </button>
               </div>
-            </div>
-
-            {/* Options */}
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-gray-300 text-vepagos-green focus:ring-vepagos-green"
-                />
-                <span className="text-xs font-semibold text-vepagos-navy uppercase">
-                  Recordar Sesión
-                </span>
-              </label>
-              <Link
-                href="#"
-                className="text-xs font-bold text-vepagos-green hover:text-vepagos-green-deep transition-colors uppercase"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
-
-            {/* Submit Button */}
-            <div className="pt-2">
-              <Button className="w-full font-bold uppercase tracking-wider" size="lg">
-                Ingresar
-              </Button>
-            </div>
-          </form>
-
-          {/* Footer Card */}
-          <div className="mt-8 pt-6 border-t border-gray-100 relative">
-            <div className="absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-white px-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              Soporte Técnico
-            </div>
-            <div className="flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-6 text-xs text-gray-500">
-              <div className="flex items-center">
-                <HeadphonesIcon className="h-4 w-4 text-vepagos-green mr-2" />
-                <span>Mesa de ayuda: +57 (601) 743 1313</span>
+            </form>
+          ) : (
+            // PASO 2: CAMBIO DE CONTRASEÑA OBLIGATORIO
+            <form className="space-y-6" onSubmit={handleChangePassword}>
+              <div className="mb-6 text-center">
+                <h2 className="text-[24px] font-barlow-condensed font-bold text-[#001F60] uppercase tracking-wide">
+                  ACTUALIZAR CONTRASEÑA
+                </h2>
+                <p className="text-[15px] text-[#6E7B99] mt-2">
+                  Por seguridad, debe cambiar su contraseña predeterminada antes de continuar.
+                </p>
               </div>
-              <div className="hidden sm:block h-4 w-px bg-gray-200"></div>
-              <div className="flex items-center">
-                <Mail className="h-4 w-4 text-vepagos-green mr-2" />
-                <span>soporte@vepagos.co</span>
-              </div>
-            </div>
-          </div>
-        </Card>
 
-        {/* Footer App */}
-        <div className="mt-12 text-xs text-gray-400 tracking-widest uppercase">
-          © 2024 Vepagos. Todos los derechos reservados.
+              {/* Nueva Contraseña */}
+              <div className="flex flex-col space-y-2">
+                <label className="text-[14px] font-barlow-condensed font-bold text-[#001F60] uppercase tracking-wide">
+                  NUEVA CONTRASEÑA
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="w-full h-[52px] pl-4 pr-12 bg-white border-[1.5px] border-[#E5E9F2] rounded-[10px] text-[16px] text-[#001F60] placeholder:text-[#6E7B99] focus:outline-none focus:border-[#00CE7C] transition-colors duration-150"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-[#6E7B99] hover:text-[#001F60] transition-colors"
+                  >
+                    {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirmar Contraseña */}
+              <div className="flex flex-col space-y-2">
+                <label className="text-[14px] font-barlow-condensed font-bold text-[#001F60] uppercase tracking-wide">
+                  CONFIRMAR CONTRASEÑA
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirma la nueva contraseña"
+                    className="w-full h-[52px] pl-4 pr-12 bg-white border-[1.5px] border-[#E5E9F2] rounded-[10px] text-[16px] text-[#001F60] placeholder:text-[#6E7B99] focus:outline-none focus:border-[#00CE7C] transition-colors duration-150"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full h-[52px] bg-[#00CE7C] hover:bg-[#00B36C] text-[#001F60] rounded-[999px] font-barlow-condensed font-bold text-[18px] uppercase tracking-wider transition-colors duration-150 flex items-center justify-center disabled:opacity-70"
+                >
+                  {isLoading ? "Guardando..." : "GUARDAR Y ENTRAR"}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="w-full text-center pb-8 pt-4">
+        <p className="text-[13px] text-[#E5E9F2] leading-relaxed opacity-90">
+          © 2026 Vepagos<br />
+          Plataforma NOC-NOC<br />
+          Centro de Operaciones
+        </p>
+      </footer>
+
     </div>
   );
 }

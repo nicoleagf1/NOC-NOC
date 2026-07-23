@@ -3,22 +3,39 @@ import {
   PrometheusVectorResult, 
   PrometheusMatrixResult 
 } from "../types/metrics";
-
-const PROMETHEUS_URL = process.env.PROMETHEUS_URL || "http://localhost:9090";
+import { connectionService } from "../services/connectionService";
 
 /**
  * Base generic fetch for Prometheus API.
  * Uses Next.js native fetch for caching features.
  */
 async function fetchPrometheus<T>(endpoint: string, params: URLSearchParams, revalidateSeconds = 15): Promise<PrometheusResponse<T>> {
-  const url = `${PROMETHEUS_URL}/api/v1/${endpoint}?${params.toString()}`;
+  // Resolve active connection from PostgreSQL
+  const connection = await connectionService.getActiveConnection('prometheus');
   
+  if (!connection) {
+    console.error(`[Prometheus Client] No active prometheus connection found in Database.`);
+    return { status: "error", error: "No active Prometheus connection configured in Dashboard." };
+  }
+
+  const url = `${connection.url.replace(/\/$/, '')}/api/v1/${endpoint}?${params.toString()}`;
+  
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+  };
+
+  // Attach dynamic authentication if needed
+  if (connection.authType === 'basic' && connection.authCredentials) {
+    const encoded = Buffer.from(connection.authCredentials).toString('base64');
+    headers['Authorization'] = `Basic ${encoded}`;
+  } else if (connection.authType === 'bearer' && connection.authCredentials) {
+    headers['Authorization'] = `Bearer ${connection.authCredentials}`;
+  }
+
   try {
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers,
       // Cache configuration: stale-while-revalidate pattern
       next: { revalidate: revalidateSeconds }
     });
