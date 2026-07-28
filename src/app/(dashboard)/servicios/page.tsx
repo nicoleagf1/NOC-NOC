@@ -147,6 +147,7 @@ export default function ServiciosPage() {
   };
 
   const fetchServices = async () => {
+    setLoading(true);
     try {
       const res = await fetch("/api/metrics/services");
       if (!res.ok) throw new Error("Failed to fetch services");

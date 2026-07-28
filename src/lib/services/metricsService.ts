@@ -1,4 +1,4 @@
-import { queryPrometheus, queryRangePrometheus } from "../api/prometheusClient";
+import { queryPrometheus, queryRangePrometheus, fetchActiveAlerts } from "../api/prometheusClient";
 import { ServiceStatusDTO, SystemResourceDTO, TimeSeriesDataPoint } from "../types/metrics";
 import { query } from "../db";
 import { connectionService } from "./connectionService";
@@ -199,3 +199,147 @@ export async function getMonitoredHosts() {
   }
 }
 
+
+export async function getInfrastructureDashboardData() {
+  const end = Math.floor(Date.now() / 1000);
+  const start = end - (24 * 3600);
+  const step = "1h";
+
+  const globalKpis = {
+    totalHosts: 0,
+    cpuAvg: 0,
+    memAvg: 0,
+    diskAvg: 0,
+    activeAlerts: 0
+  };
+
+  const qHosts = 'count(up{job="node"}) or count(up)';
+  const qCpuAvg = '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)';
+  const qMemAvg = '100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100)';
+  const qDiskAvg = '100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100)';
+
+  const [resHosts, resCpu, resMem, resDisk] = await Promise.all([
+    queryPrometheus(qHosts),
+    queryPrometheus(qCpuAvg),
+    queryPrometheus(qMemAvg),
+    queryPrometheus(qDiskAvg)
+  ]);
+
+  const parseVal = (res: any[]) => res[0]?.value[1] ? parseFloat(res[0].value[1]) : 0;
+  globalKpis.totalHosts = Math.round(parseVal(resHosts));
+  globalKpis.cpuAvg = parseFloat(parseVal(resCpu).toFixed(1));
+  globalKpis.memAvg = parseFloat(parseVal(resMem).toFixed(1));
+  globalKpis.diskAvg = parseFloat(parseVal(resDisk).toFixed(1));
+
+  const alertsList = await fetchActiveAlerts();
+  globalKpis.activeAlerts = alertsList.length;
+
+  const formattedAlerts = alertsList.map((a: any) => {
+    return {
+      sev: a.labels?.severity?.toUpperCase() || "CRÍTICA",
+      sevColor: a.labels?.severity === "warning" ? "warning" : "danger",
+      host: a.labels?.instance || a.labels?.node || "Unknown",
+      ip: a.labels?.instance?.split(':')[0] || "",
+      metric: a.labels?.alertname?.toUpperCase() || "ALERTA",
+      desc: a.annotations?.description || a.annotations?.summary || "Sin descripción",
+      val: "N/A",
+      date: a.activeAt ? new Date(a.activeAt).toLocaleString() : "Reciente",
+      dur: "Activa"
+    };
+  });
+
+  const qTopHosts = 'topk(5, 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100))';
+  const resTopHosts = await queryPrometheus(qTopHosts);
+  
+  const qMemByInstance = '100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100)';
+  const qDiskByInstance = '100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100)';
+  const qNetOutByInstance = 'rate(node_network_transmit_bytes_total[5m]) * 8 / 1024 / 1024';
+
+  const [resMemInst, resDiskInst, resNetInst] = await Promise.all([
+    queryPrometheus(qMemByInstance),
+    queryPrometheus(qDiskByInstance),
+    queryPrometheus(qNetOutByInstance)
+  ]);
+
+  const memMap = new Map(resMemInst.map(r => [r.metric.instance, parseVal([r])]));
+  const diskMap = new Map(resDiskInst.map(r => [r.metric.instance, parseVal([r])]));
+  const netMap = new Map(resNetInst.map(r => [r.metric.instance, parseVal([r])]));
+
+  const topHosts = resTopHosts.map(r => {
+    const inst = r.metric.instance;
+    const cpu = parseVal([r]);
+    const mem = memMap.get(inst) || 0;
+    const disk = diskMap.get(inst) || 0;
+    const net = netMap.get(inst) || 0;
+    
+    const isWarning = cpu > 80 || mem > 85;
+
+    return {
+      host: inst?.split(':')[0] || "Host",
+      ip: inst?.split(':')[0] || "",
+      cpu: Math.round(cpu),
+      mem: Math.round(mem),
+      disk: Math.round(disk),
+      traf: `${net.toFixed(1)} Mbps`,
+      status: isWarning ? "ADVERTENCIA" : "OK",
+      statusColor: isWarning ? "warning" : "success"
+    };
+  });
+
+  const qCpuRange = '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)';
+  const qMemRange = '100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100)';
+  const qDiskRange = '100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100)';
+  const qNetIn = 'sum(rate(node_network_receive_bytes_total[5m])) * 8 / 1024 / 1024';
+  const qNetOut = 'sum(rate(node_network_transmit_bytes_total[5m])) * 8 / 1024 / 1024';
+  const qIopsRead = 'sum(rate(node_disk_reads_completed_total[5m]))';
+  const qIopsWrite = 'sum(rate(node_disk_writes_completed_total[5m]))';
+
+  const [rangeCpu, rangeMem, rangeDisk, rangeNetIn, rangeNetOut, rangeIopsR, rangeIopsW] = await Promise.all([
+    queryRangePrometheus(qCpuRange, start, end, step),
+    queryRangePrometheus(qMemRange, start, end, step),
+    queryRangePrometheus(qDiskRange, start, end, step),
+    queryRangePrometheus(qNetIn, start, end, step),
+    queryRangePrometheus(qNetOut, start, end, step),
+    queryRangePrometheus(qIopsRead, start, end, step),
+    queryRangePrometheus(qIopsWrite, start, end, step)
+  ]);
+
+  const timeMap = new Map<number, any>();
+  const addRangeToMap = (matrix: any[], key: string) => {
+    if (!matrix || matrix.length === 0) return;
+    matrix[0].values.forEach(([ts, val]: [number, string]) => {
+      if (!timeMap.has(ts)) {
+        const d = new Date(ts * 1000);
+        timeMap.set(ts, { time: `${d.getHours().toString().padStart(2, '0')}:00` });
+      }
+      timeMap.get(ts)[key] = parseFloat(parseFloat(val).toFixed(2));
+    });
+  };
+
+  addRangeToMap(rangeCpu, "CPU");
+  addRangeToMap(rangeMem, "Memoria");
+  addRangeToMap(rangeDisk, "Disco");
+  addRangeToMap(rangeNetIn, "Entrada");
+  addRangeToMap(rangeNetOut, "Salida");
+  addRangeToMap(rangeIopsR, "Lectura");
+  addRangeToMap(rangeIopsW, "Escritura");
+
+  const timeSeriesData = Array.from(timeMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(entry => entry[1]);
+
+  const sparkPoints = timeSeriesData.slice(-7);
+  const sparkCpu = sparkPoints.map(p => ({ v: p.CPU || 0 }));
+  const sparkMem = sparkPoints.map(p => ({ v: p.Memoria || 0 }));
+  const sparkDisk = sparkPoints.map(p => ({ v: p.Disco || 0 }));
+
+  return {
+    globalKpis,
+    topHosts,
+    alerts: formattedAlerts,
+    timeSeriesData,
+    sparkCpu,
+    sparkMem,
+    sparkDisk
+  };
+}

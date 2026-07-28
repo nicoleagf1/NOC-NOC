@@ -66,8 +66,15 @@ export function HostsTab() {
     }
   };
 
+  const getInstallSnippet = () => {
+    if (editingHost?.os_type === 'Windows') {
+      return `Invoke-WebRequest -Uri https://noc-noc.local/install-windows-exporter.ps1 -OutFile install.ps1; .\\install.ps1`;
+    }
+    return `curl -sSL https://noc-noc.local/install-node-exporter.sh | bash`;
+  };
+
   const copySnippet = () => {
-    navigator.clipboard.writeText(`curl -sSL https://noc-noc.local/install-node-exporter.sh | bash`);
+    navigator.clipboard.writeText(getInstallSnippet());
     setCopiedSnippet(true);
     setTimeout(() => setCopiedSnippet(false), 2000);
   };
@@ -172,7 +179,14 @@ export function HostsTab() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Sistema Operativo</label>
-                  <input type="text" className="w-full text-sm border border-gray-200 rounded-md p-2" value={editingHost.os_type || ''} onChange={e => setEditingHost({...editingHost, os_type: e.target.value})} placeholder="Ubuntu 22.04" />
+                  <select 
+                    className="w-full text-sm border border-gray-200 rounded-md p-2 bg-gray-50" 
+                    value={editingHost.os_type || 'Linux'} 
+                    onChange={e => setEditingHost({...editingHost, os_type: e.target.value})}
+                  >
+                    <option value="Linux">Linux</option>
+                    <option value="Windows">Windows</option>
+                  </select>
                 </div>
               </div>
 
@@ -189,10 +203,10 @@ export function HostsTab() {
               {editingHost.id && (
                 <div className="mt-4 p-3 border border-indigo-100 bg-indigo-50 rounded-md">
                   <div className="flex items-center text-indigo-800 text-xs font-bold mb-2">
-                    <Terminal className="w-4 h-4 mr-1" /> Auto-instalación de Agente (Node Exporter)
+                    <Terminal className="w-4 h-4 mr-1" /> Auto-instalación de Agente ({editingHost.os_type === 'Windows' ? 'Windows Exporter' : 'Node Exporter'})
                   </div>
                   <div className="flex items-center justify-between bg-black text-green-400 font-mono text-[10px] p-2 rounded">
-                    <span className="truncate mr-2">curl -sSL https://noc-noc.local/install-node-exporter.sh | bash</span>
+                    <span className="truncate mr-2">{getInstallSnippet()}</span>
                     <button onClick={copySnippet} className="text-gray-400 hover:text-white p-1">
                       {copiedSnippet ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                     </button>

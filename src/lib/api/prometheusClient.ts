@@ -96,3 +96,16 @@ export async function queryRangePrometheus(
   }
   return []; // Graceful degradation
 }
+
+/**
+ * Fetches active alerts from Prometheus API.
+ */
+export async function fetchActiveAlerts(): Promise<any[]> {
+  const params = new URLSearchParams();
+  const response = await fetchPrometheus<any>("alerts", params, 10);
+  
+  if (response.status === "success" && response.data?.alerts) {
+    return response.data.alerts;
+  }
+  return [];
+}
