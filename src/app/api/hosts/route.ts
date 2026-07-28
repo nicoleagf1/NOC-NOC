@@ -14,16 +14,16 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { hostname, ip_address, environment, os_type, description, is_monitored } = body;
+    const { hostname, ip_address, environment, os_type, description, is_monitored, server_role } = body;
 
     if (!hostname || !ip_address || !environment || !os_type) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
     }
 
     const res = await query(
-      `INSERT INTO infrastructure_hosts (hostname, ip_address, environment, os_type, description, is_monitored) 
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [hostname, ip_address, environment, os_type, description, is_monitored !== undefined ? is_monitored : true]
+      `INSERT INTO infrastructure_hosts (hostname, ip_address, environment, os_type, description, is_monitored, server_role) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [hostname, ip_address, environment, os_type, description, is_monitored !== undefined ? is_monitored : true, server_role || 'Sin Asignar']
     );
 
     return NextResponse.json(res.rows[0], { status: 201 });

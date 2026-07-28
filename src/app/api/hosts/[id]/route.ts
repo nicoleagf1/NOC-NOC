@@ -6,7 +6,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     const params = await props.params;
     const { id } = params;
     const body = await req.json();
-    const { hostname, ip_address, environment, os_type, description, is_monitored } = body;
+    const { hostname, ip_address, environment, os_type, description, is_monitored, server_role } = body;
 
     const updates: string[] = [];
     const values: any[] = [];
@@ -35,6 +35,10 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     if (is_monitored !== undefined) {
       updates.push(`is_monitored = $${paramIndex++}`);
       values.push(is_monitored);
+    }
+    if (server_role !== undefined) {
+      updates.push(`server_role = $${paramIndex++}`);
+      values.push(server_role);
     }
 
     if (updates.length === 0) {

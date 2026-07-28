@@ -1,0 +1,41 @@
+import { NextResponse } from 'next/server';
+import { query } from '@/lib/db';
+
+export async function GET() {
+  try {
+    const res = await query(`
+      SELECT 
+        h.id, 
+        h.hostname, 
+        h.ip_address, 
+        h.environment, 
+        h.os_type, 
+        h.server_role,
+        h.is_monitored,
+        json_agg(
+          json_build_object(
+            'id', s.id,
+            'name', s.name,
+            'slug', s.slug,
+            'current_status', s.current_status
+          )
+        ) FILTER (WHERE s.id IS NOT NULL) AS services
+      FROM infrastructure_hosts h
+      LEFT JOIN host_services hs ON h.id = hs.host_id
+      LEFT JOIN business_services s ON hs.service_id = s.id
+      GROUP BY h.id
+      ORDER BY h.created_at DESC;
+    `);
+    
+    // Transformar los nulls de services en arrays vacíos si es necesario
+    const data = res.rows.map(row => ({
+      ...row,
+      services: row.services || []
+    }));
+
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error('Error fetching vault hosts:', error);
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+  }
+}

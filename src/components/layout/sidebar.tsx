@@ -27,6 +27,7 @@ const navItems = [
     items: [
       { name: "SERVICIOS", href: "/servicios", icon: Server },
       { name: "INFRAESTRUCTURA", href: "/infraestructura", icon: Cpu },
+      { name: "SRVS. ALOJADOS", href: "/servidores-alojados", icon: Network },
       { name: "EVENTOS", href: "/eventos", icon: Clock },
     ],
   },
