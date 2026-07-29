@@ -41,9 +41,7 @@ export function Topbar({ isSidebarCollapsed }: { isSidebarCollapsed: boolean }) 
     <header className={`h-[72px] bg-vepagos-navy text-white flex items-center justify-between px-6 fixed top-0 right-0 z-10 transition-all duration-300 ${isSidebarCollapsed ? 'left-[80px]' : 'left-[280px]'}`}>
       {/* Left side: Menu and Title */}
       <div className="flex items-center">
-        <button className="mr-4 hover:bg-white/10 p-1.5 rounded-md transition-colors">
-          <Menu className="w-6 h-6" />
-        </button>
+
         <div className="flex items-center space-x-3 text-lg font-bold font-barlow-condensed tracking-wide">
           <span className="uppercase">NOC-NOC</span>
           <span className="text-gray-400 font-normal">|</span>

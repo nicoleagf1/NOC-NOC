@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Server,
@@ -19,7 +22,7 @@ const navItems = [
   {
     title: "",
     items: [
-      { name: "DASHBOARD", href: "/", icon: LayoutDashboard, active: true },
+      { name: "DASHBOARD", href: "/", icon: LayoutDashboard },
     ],
   },
   {
@@ -46,6 +49,8 @@ const navItems = [
 ];
 
 export function Sidebar({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggle: () => void }) {
+  const pathname = usePathname();
+
   return (
     <aside className={`bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0 z-20 transition-all duration-300 ${isCollapsed ? 'w-[80px]' : 'w-[280px]'}`}>
       {/* Logo */}
@@ -69,19 +74,20 @@ export function Sidebar({ isCollapsed, onToggle }: { isCollapsed: boolean, onTog
             <ul className="space-y-1">
               {group.items.map((item, itemIdx) => {
                 const Icon = item.icon;
+                const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
                 return (
                   <li key={itemIdx}>
                     <Link
                       href={item.href}
                       title={item.name}
                       className={`flex items-center justify-between py-2.5 rounded-lg text-sm font-medium transition-colors uppercase font-barlow-condensed tracking-wide ${isCollapsed ? 'px-0 justify-center' : 'px-3'
-                        } ${'active' in item && item.active
+                        } ${isActive
                           ? `bg-vepagos-green/10 text-vepagos-green-deep border-vepagos-green ${isCollapsed ? 'border-l-0' : 'border-l-4'}`
                           : "text-gray-500 hover:bg-gray-50 hover:text-vepagos-navy"
                         }`}
                     >
                       <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : ''}`}>
-                        <Icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} ${'active' in item && item.active ? "text-vepagos-green" : "text-gray-400"}`} />
+                        <Icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} ${isActive ? "text-vepagos-green" : "text-gray-400"}`} />
                         {!isCollapsed && <span>{item.name}</span>}
                       </div>
                       {!isCollapsed && 'badge' in item && item.badge && (
