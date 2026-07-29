@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { encrypt } from '@/lib/security';
 
 export async function PUT(req: Request, props: { params: Promise<{ id: string }> }) {
   try {
     const params = await props.params;
     const { id } = params;
     const body = await req.json();
-    const { hostname, ip_address, environment, os_type, description, is_monitored, server_role } = body;
+    const { hostname, ip_address, environment, os_type, description, is_monitored, server_role, vault_username, vault_password } = body;
 
     const updates: string[] = [];
     const values: any[] = [];
@@ -39,6 +40,18 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     if (server_role !== undefined) {
       updates.push(`server_role = $${paramIndex++}`);
       values.push(server_role);
+    }
+    if (vault_username !== undefined) {
+      updates.push(`vault_username = $${paramIndex++}`);
+      values.push(vault_username || null);
+    }
+    if (vault_password !== undefined) {
+      let encryptedPassword = null;
+      if (vault_password) {
+        encryptedPassword = encrypt(vault_password);
+      }
+      updates.push(`vault_password = $${paramIndex++}`);
+      values.push(encryptedPassword);
     }
 
     if (updates.length === 0) {

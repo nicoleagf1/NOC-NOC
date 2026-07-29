@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { decrypt, isMasked } from '@/lib/security';
 
 export async function GET() {
   try {
@@ -12,6 +13,8 @@ export async function GET() {
         h.os_type, 
         h.server_role,
         h.is_monitored,
+        h.vault_username,
+        h.vault_password,
         json_agg(
           json_build_object(
             'id', s.id,
@@ -27,11 +30,23 @@ export async function GET() {
       ORDER BY h.created_at DESC;
     `);
     
-    // Transformar los nulls de services en arrays vacíos si es necesario
-    const data = res.rows.map(row => ({
-      ...row,
-      services: row.services || []
-    }));
+    // Transformar los nulls de services en arrays vacíos y desencriptar
+    const data = res.rows.map(row => {
+      let decryptedPassword = null;
+      if (row.vault_password) {
+        try {
+          decryptedPassword = decrypt(row.vault_password);
+        } catch (e) {
+          decryptedPassword = 'ERROR_DECRYPTING';
+        }
+      }
+
+      return {
+        ...row,
+        vault_password: decryptedPassword,
+        services: row.services || []
+      };
+    });
 
     return NextResponse.json(data);
   } catch (error: any) {
