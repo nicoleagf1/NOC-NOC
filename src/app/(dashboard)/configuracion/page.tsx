@@ -369,7 +369,7 @@ export default function ConfiguracionPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <Badge variant={user.roleName === 'ADMIN' ? 'default' : 'secondary'} className="text-[10px] uppercase font-bold tracking-wider">
+                        <Badge variant={user.roleName === 'ADMIN' ? 'default' : 'info'} className="text-[10px] uppercase font-bold tracking-wider">
                           {user.roleName}
                         </Badge>
                       </td>
