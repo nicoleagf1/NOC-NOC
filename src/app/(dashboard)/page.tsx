@@ -86,10 +86,13 @@ export default function DashboardPage() {
     { name: "Degradados", value: data?.servicesSummary?.degraded || 0, color: "amber-500" },
   ];
 
-  const activeAlertsCount = data?.kpis?.activeAlerts || 0;
+  const criticalAlertsCount = data?.kpis?.criticalAlerts || 0;
+  const warningAlertsCount = data?.kpis?.warningAlerts || 0;
+  const activeAlertsCount = criticalAlertsCount + warningAlertsCount;
+
   const donutAlertsData = [
-    { name: "Críticas", value: activeAlertsCount, color: "red-500" },
-    { name: "Advertencias", value: 0, color: "amber-500" }, // Simulado si Prometheus no lo divide
+    { name: "Críticas", value: criticalAlertsCount, color: "red-500" },
+    { name: "Advertencias", value: warningAlertsCount, color: "amber-500" },
   ];
 
   const upPercent = data?.servicesSummary?.total > 0 
@@ -199,7 +202,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="text-[10px] font-bold mt-3 text-right">
-            <span className="text-red-500">CRÍTICAS: {activeAlertsCount}</span> <span className="text-gray-300 mx-1">|</span> <span className="text-amber-500">ADVERT: 0</span>
+            <span className="text-red-500">CRÍTICAS: {criticalAlertsCount}</span> <span className="text-gray-300 mx-1">|</span> <span className="text-amber-500">ADVERT: {warningAlertsCount}</span>
           </div>
         </Card>
 
@@ -441,11 +444,11 @@ export default function DashboardPage() {
             <div className="w-1/2 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div><span className="text-xs font-bold text-vepagos-navy uppercase">Críticas</span></div>
-                <span className="text-xs text-gray-500">{activeAlertsCount}</span>
+                <span className="text-xs text-gray-500">{criticalAlertsCount}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-amber-500 mr-2"></div><span className="text-xs font-bold text-vepagos-navy uppercase">Advertencias</span></div>
-                <span className="text-xs text-gray-500">0</span>
+                <span className="text-xs text-gray-500">{warningAlertsCount}</span>
               </div>
             </div>
           </div>

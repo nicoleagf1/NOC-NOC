@@ -111,11 +111,11 @@ export function ServicesTab() {
                   </td>
                   <td className="px-6 py-4 text-center">
                     {service.uptime_kuma_monitor_id ? (
-                      <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+                      <Badge className="text-[10px] bg-green-50 text-green-700 border-green-200">
                         ID: {service.uptime_kuma_monitor_id}
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[10px] bg-yellow-50 text-yellow-700 border-yellow-200">
+                      <Badge className="text-[10px] bg-yellow-50 text-yellow-700 border-yellow-200">
                         Pendiente
                       </Badge>
                     )}
@@ -247,7 +247,7 @@ export function ServicesTab() {
 
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-2">
               {editingService.id && (
-                <Button variant="destructive" className="flex-1" onClick={() => handleDelete(editingService.id!)} disabled={isSaving}>
+                <Button variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700" onClick={() => handleDelete(editingService.id!)} disabled={isSaving}>
                   Eliminar
                 </Button>
               )}

@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -37,7 +38,7 @@ const navItems = [
   {
     title: "ALERTAS",
     items: [
-      { name: "ACTIVAS", href: "/alertas/activas", icon: Bell, badge: 12 },
+      { name: "ACTIVAS", href: "/alertas/activas", icon: Bell, badge: true },
     ],
   },
   {
@@ -50,6 +51,26 @@ const navItems = [
 
 export function Sidebar({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggle: () => void }) {
   const pathname = usePathname();
+  const [activeAlertsCount, setActiveAlertsCount] = useState(0);
+
+  useEffect(() => {
+    const fetchAlertsCount = async () => {
+      try {
+        const res = await fetch("/api/metrics/alerts");
+        const json = await res.json();
+        if (json.success) {
+          const activeCount = json.data.filter((a: any) => a.status === 'ACTIVA').length;
+          setActiveAlertsCount(activeCount);
+        }
+      } catch (e) {
+        console.error("Error fetching alerts", e);
+      }
+    };
+    
+    fetchAlertsCount();
+    const interval = setInterval(fetchAlertsCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <aside className={`bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0 z-20 transition-all duration-300 ${isCollapsed ? 'w-[80px]' : 'w-[280px]'}`}>
@@ -90,9 +111,9 @@ export function Sidebar({ isCollapsed, onToggle }: { isCollapsed: boolean, onTog
                         <Icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} ${isActive ? "text-vepagos-green" : "text-gray-400"}`} />
                         {!isCollapsed && <span>{item.name}</span>}
                       </div>
-                      {!isCollapsed && 'badge' in item && item.badge && (
+                      {!isCollapsed && 'badge' in item && item.badge && activeAlertsCount > 0 && (
                         <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.badge as React.ReactNode}
+                          {activeAlertsCount}
                         </span>
                       )}
                     </Link>

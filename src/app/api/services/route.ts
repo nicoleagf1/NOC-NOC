@@ -27,9 +27,9 @@ export async function POST(req: Request) {
       `INSERT INTO business_services (name, slug, endpoint_url, current_status, monitor_type, monitor_interval, monitor_config) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [
-        name, 
-        slug, 
-        endpoint_url || null, 
+        name,
+        slug,
+        endpoint_url || null,
         current_status || 'DISPONIBLE',
         monitor_type || 'http',
         monitor_interval ? parseInt(monitor_interval) : 60,
@@ -44,9 +44,9 @@ export async function POST(req: Request) {
     try {
       if (endpoint_url) {
         console.log(`[Aprovisionamiento] Iniciando creación de monitor en Uptime Kuma para ${name}...`);
-        
+
         const kumaConn = await connectionService.getActiveConnection('uptime-kuma');
-        
+
         if (kumaConn && kumaConn.url) {
           const socket = io(kumaConn.url, {
             transports: ['websocket'],
@@ -118,17 +118,17 @@ export async function POST(req: Request) {
             socket.on('connect_error', (err) => {
               reject(err);
             });
-            
+
             setTimeout(() => {
               socket.disconnect();
               reject(new Error('Kuma connection timeout'));
             }, 5000);
           });
-          
+
           if (monitorId) {
-             console.log(`[Aprovisionamiento] Monitor creado exitosamente en Kuma (ID: ${monitorId})`);
-             await query('UPDATE business_services SET uptime_kuma_monitor_id = $1 WHERE id = $2', [monitorId, newService.id]);
-             newService.uptime_kuma_monitor_id = monitorId;
+            console.log(`[Aprovisionamiento] Monitor creado exitosamente en Kuma (ID: ${monitorId})`);
+            await query('UPDATE business_services SET uptime_kuma_monitor_id = $1 WHERE id = $2', [monitorId, newService.id]);
+            newService.uptime_kuma_monitor_id = monitorId;
           }
         } else {
           console.log('[Aprovisionamiento] No hay conexión activa a Uptime Kuma.');

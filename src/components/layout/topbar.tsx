@@ -8,16 +8,34 @@ export function Topbar({ isSidebarCollapsed }: { isSidebarCollapsed: boolean }) 
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState<{ firstName?: string, lastName?: string, roleName?: string, username?: string, email?: string } | null>(null);
+  const [activeAlertsCount, setActiveAlertsCount] = useState(0);
 
   useEffect(() => {
+    // Fetch User
     fetch("/api/auth/me")
       .then(res => res.json())
       .then(data => {
-        if (data.user) {
-          setUser(data.user);
-        }
+        if (data.user) setUser(data.user);
       })
       .catch(console.error);
+
+    // Fetch Alerts Count
+    const fetchAlertsCount = async () => {
+      try {
+        const res = await fetch("/api/metrics/alerts");
+        const json = await res.json();
+        if (json.success) {
+          const activeCount = json.data.filter((a: any) => a.status === 'ACTIVA').length;
+          setActiveAlertsCount(activeCount);
+        }
+      } catch (e) {
+        console.error("Error fetching alerts", e);
+      }
+    };
+    
+    fetchAlertsCount();
+    const interval = setInterval(fetchAlertsCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = async () => {
@@ -54,9 +72,11 @@ export function Topbar({ isSidebarCollapsed }: { isSidebarCollapsed: boolean }) 
         {/* Notification Bell */}
         <button className="relative hover:bg-white/10 p-1.5 rounded-md transition-colors">
           <Bell className="w-6 h-6 text-gray-200" />
-          <span className="absolute top-1 right-1 w-4 h-4 bg-vepagos-green text-vepagos-navy text-[10px] font-bold rounded-full flex items-center justify-center border border-vepagos-navy">
-            12
-          </span>
+          {activeAlertsCount > 0 && (
+            <span className="absolute top-1 right-1 w-4 h-4 bg-vepagos-green text-vepagos-navy text-[10px] font-bold rounded-full flex items-center justify-center border border-vepagos-navy">
+              {activeAlertsCount}
+            </span>
+          )}
         </button>
 
         {/* User Profile Dropdown */}

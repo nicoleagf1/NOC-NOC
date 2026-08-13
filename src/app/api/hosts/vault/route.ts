@@ -29,7 +29,7 @@ export async function GET() {
       GROUP BY h.id
       ORDER BY h.created_at DESC;
     `);
-    
+
     // Transformar los nulls de services en arrays vacíos y desencriptar
     const data = res.rows.map(row => {
       let decryptedPassword = null;

@@ -104,8 +104,11 @@ export async function fetchActiveAlerts(): Promise<any[]> {
   const params = new URLSearchParams();
   const response = await fetchPrometheus<any>("alerts", params, 10);
   
-  if (response.status === "success" && response.data?.alerts) {
-    return response.data.alerts;
+  // El endpoint /alerts devuelve { status: "success", data: { alerts: [...] } }
+  // lo cual rompe el tipado de PrometheusResponse que espera { data: { resultType, result } }
+  const anyResponse = response as any;
+  if (anyResponse.status === "success" && anyResponse.data?.alerts) {
+    return anyResponse.data.alerts;
   }
   return [];
 }

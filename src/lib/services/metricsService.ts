@@ -147,20 +147,36 @@ export async function getHistoricalCpuUsage(hours = 24): Promise<TimeSeriesDataP
 export async function getGlobalKPIs() {
   const cpuQuery = 'avg(100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100))';
   const memQuery = 'avg((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)';
-  const activeAlertsQuery = 'count(ALERTS{alertstate="firing"}) or vector(0)';
 
-  const [cpuRes, memRes, alertsRes] = await Promise.all([
+  const [cpuRes, memRes, activeAlertsList] = await Promise.all([
     queryPrometheus(cpuQuery),
     queryPrometheus(memQuery),
-    queryPrometheus(activeAlertsQuery)
+    fetchActiveAlerts()
   ]);
 
   const parseVal = (res: any[]) => res[0]?.value[1] ? parseFloat(res[0].value[1]).toFixed(1) : "0.0";
 
+  let criticalCount = 0;
+  let warningCount = 0;
+
+  (activeAlertsList || []).forEach((alert: any) => {
+    if (alert.state === 'firing') {
+      const severity = alert.labels?.severity?.toLowerCase();
+      if (severity === 'warning') {
+        warningCount++;
+      } else {
+        // Asumimos 'critical' para todo lo demás (o si no tiene severity explícito)
+        criticalCount++;
+      }
+    }
+  });
+
   return {
     cpuUsagePercent: parseVal(cpuRes),
     memoryUsagePercent: parseVal(memRes),
-    activeAlerts: parseInt(parseVal(alertsRes))
+    activeAlerts: criticalCount + warningCount,
+    criticalAlerts: criticalCount,
+    warningAlerts: warningCount
   };
 }
 
