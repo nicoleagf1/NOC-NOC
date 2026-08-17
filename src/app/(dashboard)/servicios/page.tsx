@@ -397,7 +397,11 @@ export default function ServiciosPage() {
                             </button>
                             
                             {openDropdownId === service.id && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-[var(--radius-card)] shadow-xl border border-gray-100 z-50 overflow-hidden">
+                              <div className={`absolute right-0 w-48 bg-white rounded-[var(--radius-card)] shadow-xl border border-gray-100 z-50 overflow-hidden ${
+                                idx >= filteredServices.length - 2 && filteredServices.length > 2 
+                                  ? 'bottom-full mb-2' 
+                                  : 'top-full mt-2'
+                              }`}>
                                 <div className="py-1">
                                   <button 
                                     onClick={(e) => handleToggleMaintenance(service, e)}
