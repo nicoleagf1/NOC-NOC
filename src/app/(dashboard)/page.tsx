@@ -238,9 +238,9 @@ export default function DashboardPage() {
 
       {/* ECG Widget Grid */}
       <div className="grid grid-cols-1 gap-6 mt-6 pb-12">
-        <Card className="p-6 col-span-1 !bg-vepagos-navy !text-white overflow-hidden relative !border-vepagos-navy">
+        <Card className="p-6 col-span-1 bg-white text-vepagos-navy overflow-hidden relative border-gray-200 shadow-sm">
           {/* Subtle Grid Background for ECG feel */}
-          <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+          <div className="absolute inset-0 opacity-50 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
           
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 relative z-10">
             <div>
@@ -253,12 +253,12 @@ export default function DashboardPage() {
             
             {data?.services && data.services.length > 0 && (
               <select 
-                className="mt-4 md:mt-0 bg-white/10 border border-white/20 text-white text-sm rounded-md p-2 outline-none focus:border-vepagos-green"
+                className="mt-4 md:mt-0 bg-white border border-gray-200 text-vepagos-navy text-sm rounded-md p-2 outline-none focus:border-vepagos-green shadow-sm"
                 value={selectedEcgService || ''}
                 onChange={(e) => setSelectedEcgService(e.target.value)}
               >
                 {data.services.map((s: any) => (
-                  <option key={s.id} value={s.id} className="bg-vepagos-navy">
+                  <option key={s.id} value={s.id} className="bg-white text-vepagos-navy">
                     {s.name} ({s.status.toUpperCase()})
                   </option>
                 ))}

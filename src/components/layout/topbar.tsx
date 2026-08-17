@@ -56,7 +56,7 @@ export function Topbar({ isSidebarCollapsed }: { isSidebarCollapsed: boolean }) 
   };
 
   return (
-    <header className={`h-[72px] bg-vepagos-navy text-white flex items-center justify-between px-6 fixed top-0 right-0 z-10 transition-all duration-300 ${isSidebarCollapsed ? 'left-[80px]' : 'left-[280px]'}`}>
+    <header className={`h-[72px] bg-vepagos-navy text-white flex items-center justify-between px-6 fixed top-0 right-0 z-50 transition-all duration-300 ${isSidebarCollapsed ? 'left-[80px]' : 'left-[280px]'}`}>
       {/* Left side: Menu and Title */}
       <div className="flex items-center">
 
