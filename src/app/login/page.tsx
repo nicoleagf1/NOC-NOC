@@ -104,7 +104,7 @@ export default function LoginPage() {
           <img
             src="/logo.png"
             alt="Vepagos Logo"
-            className="w-auto h-auto max-w-[380px] max-h-[300px] mb-8 object-contain"
+            className="w-auto h-auto max-w-[320px] max-h-[220px] mb-4 object-contain"
           />
           <h1 className="text-[48px] font-barlow-condensed tracking-[2px] font-bold text-white leading-none mb-1">
             NOC-NOC

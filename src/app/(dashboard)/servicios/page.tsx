@@ -65,10 +65,11 @@ export default function ServiciosPage() {
         // Refresh the list after a successful ping to potentially see updated status
         await fetchServices();
       } else {
-        console.error("Ping failed:", await res.text());
+        const errorData = await res.json().catch(() => ({}));
+        alert(`No se pudo diagnosticar el servicio: ${errorData.error || 'Operación fallida'}`);
       }
-    } catch (err) {
-      console.error("Error pinging service:", err);
+    } catch (err: any) {
+      alert(`Error de conexión al intentar diagnosticar: ${err.message}`);
     } finally {
       setPingingService(null);
     }
