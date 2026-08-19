@@ -36,6 +36,7 @@ export async function middleware(request: NextRequest) {
     // Si es una página web, redirige al login
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    url.searchParams.set('error', 'no_cookie');
     return NextResponse.redirect(url);
   }
 
@@ -52,6 +53,7 @@ export async function middleware(request: NextRequest) {
     }
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    url.searchParams.set('error', 'token_failed_' + (process.env.APP_SECRET ? 'has_secret' : 'no_secret') + '_' + (err instanceof Error ? err.name : 'unknown'));
     // Además borramos la cookie para limpiar la sesión rota
     const response = NextResponse.redirect(url);
     response.cookies.delete('noc_session');

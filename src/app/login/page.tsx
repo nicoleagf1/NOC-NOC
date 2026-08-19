@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, AlertCircle, Activity, Bell, BarChart3, ShieldCheck, Radar } from "lucide-react";
 
@@ -8,6 +8,18 @@ export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const errorParam = searchParams.get('error');
+      if (errorParam === 'no_cookie') {
+        setError('Error de sesión: La cookie de autenticación no se pudo guardar. Verifica SSL o IP.');
+      } else if (errorParam?.startsWith('token_failed')) {
+        setError(`Error de sesión: Token inválido (${errorParam}). Verifica la configuración de APP_SECRET en el servidor.`);
+      }
+    }
+  }, []);
 
   // States para Formulario de Login
   const [username, setUsername] = useState("");

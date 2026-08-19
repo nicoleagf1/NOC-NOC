@@ -53,8 +53,10 @@ export async function POST(request: Request) {
 
     const isHttps = request.url.startsWith('https://') || request.headers.get('x-forwarded-proto') === 'https';
 
-    // Setear cookie segura en Next.js
-    (await cookies()).set({
+    const response = NextResponse.json({ success: true, redirectUrl: '/' });
+
+    // Setear cookie en la respuesta (más seguro y compatible en Route Handlers)
+    response.cookies.set({
       name: 'noc_session',
       value: token,
       httpOnly: true,
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
       maxAge: 60 * 60 * 12 // 12 horas
     });
 
-    return NextResponse.json({ success: true, redirectUrl: '/' });
+    return response;
 
   } catch (error: any) {
     console.error('Login Error:', error);

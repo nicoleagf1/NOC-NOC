@@ -44,7 +44,9 @@ export async function POST(request: Request) {
 
       const isHttps = request.url.startsWith('https://') || request.headers.get('x-forwarded-proto') === 'https';
 
-      (await cookies()).set({
+      const response = NextResponse.json({ success: true, redirectUrl: '/' });
+
+      response.cookies.set({
         name: 'noc_session',
         value: token,
         httpOnly: true,
@@ -53,6 +55,8 @@ export async function POST(request: Request) {
         path: '/',
         maxAge: 60 * 60 * 12
       });
+
+      return response;
     }
 
     return NextResponse.json({ success: true, redirectUrl: '/' });
