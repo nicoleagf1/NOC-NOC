@@ -77,7 +77,7 @@ export default function LoginPage() {
         setRequiresPasswordChange(true);
         setUserId(data.userId);
       } else if (data.success) {
-        router.push("/");
+        window.location.href = "/";
       }
     } catch (err: any) {
       setError("Error de red. Intenta nuevamente.");
@@ -117,7 +117,7 @@ export default function LoginPage() {
       }
 
       if (data.success) {
-        router.push("/");
+        window.location.href = "/";
       }
     } catch (err: any) {
       setError("Error de red. Intenta nuevamente.");
