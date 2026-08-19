@@ -1,13 +1,21 @@
 import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 
-const JWT_SECRET = process.env.APP_SECRET;
-
-if (!JWT_SECRET) {
-  throw new Error('APP_SECRET must be defined in environment variables');
+function getSecretKey() {
+  const JWT_SECRET = process.env.APP_SECRET;
+  if (!JWT_SECRET) {
+    throw new Error('APP_SECRET must be defined in environment variables');
+  }
+  return new TextEncoder().encode(JWT_SECRET);
 }
 
-const secretKey = new TextEncoder().encode(JWT_SECRET);
+function getRawSecret() {
+  const JWT_SECRET = process.env.APP_SECRET;
+  if (!JWT_SECRET) {
+    throw new Error('APP_SECRET must be defined in environment variables');
+  }
+  return JWT_SECRET;
+}
 
 export interface SessionPayload {
   userId: string;
@@ -40,7 +48,7 @@ export const authService = {
       .setProtectedHeader({ alg })
       .setIssuedAt()
       .setExpirationTime('12h') // Sesión de 12 horas
-      .sign(secretKey);
+      .sign(getSecretKey());
   },
 
   /**
@@ -48,7 +56,7 @@ export const authService = {
    */
   async verifyToken(token: string): Promise<SessionPayload | null> {
     try {
-      const { payload } = await jwtVerify(token, secretKey);
+      const { payload } = await jwtVerify(token, getSecretKey());
       return payload as unknown as SessionPayload;
     } catch (error) {
       return null;
@@ -62,7 +70,7 @@ export const authService = {
    */
   async signRecoveryToken(userId: string, currentPasswordHash: string): Promise<string> {
     const alg = 'HS256';
-    const dynamicSecret = new TextEncoder().encode(`${JWT_SECRET}-${currentPasswordHash}`);
+    const dynamicSecret = new TextEncoder().encode(`${getRawSecret()}-${currentPasswordHash}`);
     return new SignJWT({ userId, purpose: 'password_reset' })
       .setProtectedHeader({ alg })
       .setIssuedAt()
@@ -75,7 +83,7 @@ export const authService = {
    */
   async verifyRecoveryToken(token: string, currentPasswordHash: string): Promise<{ userId: string } | null> {
     try {
-      const dynamicSecret = new TextEncoder().encode(`${JWT_SECRET}-${currentPasswordHash}`);
+      const dynamicSecret = new TextEncoder().encode(`${getRawSecret()}-${currentPasswordHash}`);
       const { payload } = await jwtVerify(token, dynamicSecret);
       if (payload.purpose !== 'password_reset') return null;
       return payload as unknown as { userId: string };
