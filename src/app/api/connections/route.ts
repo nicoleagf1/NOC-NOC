@@ -11,18 +11,18 @@ export async function GET() {
   }
 }
 
+import { createConnectionSchema } from '@/lib/validations/schemas';
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    
-    // Validaciones básicas
-    if (!body.name || !body.type || !body.url) {
-      return NextResponse.json({ error: 'Name, type, and url are required' }, { status: 400 });
+    const json = await request.json();
+    const result = createConnectionSchema.safeParse(json);
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
     }
-    
-    if (body.type !== 'prometheus' && body.type !== 'uptime-kuma') {
-      return NextResponse.json({ error: 'Invalid connection type' }, { status: 400 });
-    }
+
+    const body = result.data;
 
     const newConnection = await connectionService.createConnection(body);
     return NextResponse.json(newConnection, { status: 201 });

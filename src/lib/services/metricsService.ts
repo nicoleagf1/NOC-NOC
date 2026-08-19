@@ -16,7 +16,7 @@ export async function getServiceStatuses(): Promise<ServiceStatusDTO[]> {
         const socket = io(kumaConn.url, { transports: ['websocket'], reconnection: false });
         realHeartbeats = await new Promise((resolve) => {
           socket.on('connect', () => {
-            const [username, password] = kumaConn.authCredentials.split(':');
+            const [username, password] = (kumaConn.authCredentials || '').split(':');
             socket.emit('login', { username, password, token: '' });
           });
           socket.on('heartbeatList', (data: any) => {
@@ -33,7 +33,7 @@ export async function getServiceStatuses(): Promise<ServiceStatusDTO[]> {
       console.error("[metricsService] Kuma telemetry error:", kumaErr);
     }
 
-    return res.rows.map(row => {
+    return res.rows.map((row: any) => {
       let status: 'up' | 'down' | 'degraded' = 'up';
       if (row.current_status === 'CAÍDO') status = 'down';
       else if (row.current_status === 'DEGRADADO') status = 'degraded';

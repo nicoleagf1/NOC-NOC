@@ -1,14 +1,24 @@
 import { NextResponse } from 'next/server';
 import { connectionService } from '@/lib/services/connectionService';
 
+import { updateConnectionSchema } from '@/lib/validations/schemas';
+
 export async function PUT(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  let id = "unknown";
   try {
     const params = await props.params;
-    const id = params.id;
-    const body = await request.json();
+    id = params.id;
+    const json = await request.json();
+    const result = updateConnectionSchema.safeParse(json);
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
+    }
+
+    const body = result.data;
     
     const updatedConnection = await connectionService.updateConnection(id, body);
     
@@ -18,7 +28,7 @@ export async function PUT(
 
     return NextResponse.json(updatedConnection);
   } catch (error: any) {
-    console.error(`Error updating connection ${params.id}:`, error);
+    console.error(`Error updating connection ${id}:`, error);
     return NextResponse.json({ error: 'Failed to update connection' }, { status: 500 });
   }
 }
@@ -27,9 +37,10 @@ export async function DELETE(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  let id = "unknown";
   try {
     const params = await props.params;
-    const id = params.id;
+    id = params.id;
     const deleted = await connectionService.deleteConnection(id);
     
     if (!deleted) {
@@ -38,7 +49,7 @@ export async function DELETE(
 
     return new NextResponse(null, { status: 204 });
   } catch (error: any) {
-    console.error(`Error deleting connection ${params.id}:`, error);
+    console.error(`Error deleting connection ${id}:`, error);
     return NextResponse.json({ error: 'Failed to delete connection' }, { status: 500 });
   }
 }

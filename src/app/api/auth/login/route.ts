@@ -3,13 +3,18 @@ import { authService } from '@/lib/services/authService';
 import { userService } from '@/lib/services/userService';
 import { cookies } from 'next/headers';
 
+import { loginSchema } from '@/lib/validations/schemas';
+
 export async function POST(request: Request) {
   try {
-    const { username, password } = await request.json();
+    const json = await request.json();
+    const result = loginSchema.safeParse(json);
 
-    if (!username || !password) {
-      return NextResponse.json({ error: 'Usuario y contraseña requeridos' }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
     }
+
+    const { username, password } = result.data;
 
     const user = await userService.getUserByUsername(username);
 

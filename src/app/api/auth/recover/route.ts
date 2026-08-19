@@ -3,13 +3,24 @@ import { query } from '@/lib/db';
 import { authService } from '@/lib/services/authService';
 import { mailService } from '@/lib/services/mailService';
 
+import { recoverPasswordSchema } from '@/lib/validations/schemas';
+
 export async function POST(request: Request) {
   try {
-    const { usernameOrEmail } = await request.json();
+    const json = await request.json();
+    
+    // El frontend enviaba usernameOrEmail, pero en mi Zod puse emailOrUsername
+    // Así que lo adapto o re-mapeo. Para simplificar, mapeo:
+    const payload = { emailOrUsername: json.usernameOrEmail || json.emailOrUsername };
+    
+    const result = recoverPasswordSchema.safeParse(payload);
 
-    if (!usernameOrEmail) {
-      return NextResponse.json({ error: 'Falta el usuario o correo' }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
     }
+    
+    const { emailOrUsername } = result.data;
+    const usernameOrEmail = emailOrUsername;
 
     // Buscar al usuario por email o username
     const userRes = await query(

@@ -9,8 +9,8 @@ async function run() {
   const socket = io(kumaConn.url, { transports: ['websocket'], reconnection: false });
   socket.on('connect', () => {
     console.log("Connected to Kuma");
-    const [username, password] = kumaConn.authCredentials.split(':');
-    socket.emit('login', { username, password, token: '' }, (resAuth) => {
+    const [username, password] = (kumaConn.authCredentials || '').split(':');
+    socket.emit('login', { username, password, token: '' }, (resAuth: any) => {
       console.log("Login:", resAuth);
       if (resAuth.ok) {
         socket.emit('add', {
@@ -21,7 +21,7 @@ async function run() {
           retryInterval: 60,
           maxretries: 0,
           upsideDown: false
-        }, (resAdd) => {
+        }, (resAdd: any) => {
           console.log("Add Ping:", resAdd);
           socket.disconnect();
           process.exit(0);

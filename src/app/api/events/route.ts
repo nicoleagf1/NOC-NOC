@@ -27,7 +27,7 @@ export async function GET() {
     `);
 
     // Mapeamos los resultados para adaptarlos al frontend
-    const events = eventsRes.rows.map(row => {
+    const events = eventsRes.rows.map((row: any) => {
       const d = new Date(row.date);
       
       let uiSev = row.severity === 'CRITICAL' ? 'CRÍTICO' : row.severity === 'WARNING' ? 'ADVERTENCIA' : 'INFORMATIVO';

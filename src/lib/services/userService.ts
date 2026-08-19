@@ -26,7 +26,7 @@ export const userService = {
       ORDER BY u.created_at DESC
     `);
     
-    return res.rows.map(row => ({
+    return res.rows.map((row: any) => ({
       id: row.id,
       roleId: row.role_id,
       roleName: row.role_name,

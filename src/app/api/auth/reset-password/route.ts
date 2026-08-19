@@ -3,13 +3,18 @@ import { query } from '@/lib/db';
 import { authService } from '@/lib/services/authService';
 import { userService } from '@/lib/services/userService';
 
+import { resetPasswordSchema } from '@/lib/validations/schemas';
+
 export async function POST(request: Request) {
   try {
-    const { id, token, newPassword } = await request.json();
+    const json = await request.json();
+    const result = resetPasswordSchema.safeParse(json);
 
-    if (!id || !token || !newPassword || newPassword.length < 6) {
-      return NextResponse.json({ error: 'Datos incompletos o contraseña muy corta' }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
     }
+
+    const { id, token, newPassword } = result.data;
 
     // 1. Obtener el usuario actual para sacar su password_hash
     const userRes = await query(

@@ -15,9 +15,9 @@ export async function GET() {
 
     // Calcular resúmenes de servicios para el dashboard
     const totalServices = services.length;
-    const upServices = services.filter(s => s.status === 'up').length;
-    const downServices = services.filter(s => s.status === 'down').length;
-    const degradedServices = services.filter(s => s.status === 'degraded').length;
+    const upServices = services.filter((s: any) => s.status === 'up').length;
+    const downServices = services.filter((s: any) => s.status === 'down').length;
+    const degradedServices = services.filter((s: any) => s.status === 'degraded').length;
 
     // Calcular la disponibilidad general en base a los servicios arriba
     const globalAvailability = totalServices > 0 ? (upServices / totalServices) * 100 : 0;

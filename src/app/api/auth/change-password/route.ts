@@ -4,13 +4,18 @@ import { authService } from '@/lib/services/authService';
 import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
 
+import { changePasswordSchema } from '@/lib/validations/schemas';
+
 export async function POST(request: Request) {
   try {
-    const { userId, newPassword } = await request.json();
+    const json = await request.json();
+    const result = changePasswordSchema.safeParse(json);
 
-    if (!userId || !newPassword || newPassword.length < 6) {
-      return NextResponse.json({ error: 'Faltan datos o contraseña muy corta (min 6 chars)' }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
     }
+
+    const { userId, newPassword } = result.data;
 
     const success = await userService.changePassword(userId, newPassword);
 

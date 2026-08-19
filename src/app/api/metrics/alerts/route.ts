@@ -13,7 +13,7 @@ export async function GET() {
       LIMIT 100
     `);
 
-    const alerts = res.rows.map(row => {
+    const alerts = res.rows.map((row: any) => {
       let sev = 'INFORMATIVO';
       let sevVar = 'info';
       if (row.severity === 'CRITICAL') { sev = 'CRÍTICO'; sevVar = 'danger'; }

@@ -31,7 +31,7 @@ export async function GET() {
     `);
 
     // Transformar los nulls de services en arrays vacíos y desencriptar
-    const data = res.rows.map(row => {
+    const data = res.rows.map((row: any) => {
       let decryptedPassword = null;
       if (row.vault_password) {
         try {

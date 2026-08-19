@@ -8,9 +8,9 @@ async function run() {
   const socket = io(kumaConn.url, { transports: ['websocket'] });
   
   socket.on('connect', () => {
-    const [username, password] = kumaConn.authCredentials.split(':');
-    socket.emit('login', { username, password }, (resAuth) => {
-        console.log("Login OK:", resAuth.ok);
+    const [username, password] = (kumaConn.authCredentials || '').split(':');
+    socket.emit('login', { username, password }, (resAuth: any) => {
+        console.log("Login OK:", resAuth?.ok);
     });
   });
 

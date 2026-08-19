@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     const targetsByEnv: Record<string, string[]> = {};
     const hostsDetails: Record<string, any[]> = {};
 
-    hosts.forEach(host => {
+    hosts.forEach((host: any) => {
       if (!targetsByEnv[host.environment]) {
         targetsByEnv[host.environment] = [];
         hostsDetails[host.environment] = [];

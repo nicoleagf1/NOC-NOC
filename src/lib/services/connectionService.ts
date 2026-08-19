@@ -30,7 +30,7 @@ export const connectionService = {
    */
   async getAllConnections(maskCredentials = true): Promise<ConnectionDTO[]> {
     const res = await query('SELECT * FROM monitoring_connections ORDER BY created_at DESC');
-    return res.rows.map(row => mapToDTO(row, maskCredentials));
+    return res.rows.map((row: any) => mapToDTO(row, maskCredentials));
   },
 
   /**

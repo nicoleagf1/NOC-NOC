@@ -536,7 +536,7 @@ export default function ConfiguracionPage() {
               
               <div className="flex gap-2 w-full pt-2">
                 {editingConnection.id && (
-                  <Button variant="destructive" className="flex-1" onClick={() => handleDelete(editingConnection.id!)}>
+                  <Button variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleDelete(editingConnection.id!)}>
                     Eliminar
                   </Button>
                 )}
