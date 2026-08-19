@@ -8,7 +8,7 @@ WORKDIR /app
 
 # Copiar dependencias
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # 2. Reconstruir el código fuente solo cuando sea necesario
 FROM base AS builder

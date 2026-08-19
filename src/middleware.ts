@@ -3,7 +3,15 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
 // Rutas públicas que no requieren autenticación
-const publicRoutes = ['/login', '/api/auth/login', '/api/auth/change-password', '/api/webhooks/uptime-kuma'];
+const publicRoutes = [
+  '/login', 
+  '/api/auth/login', 
+  '/api/auth/change-password', 
+  '/api/auth/recover',
+  '/api/auth/reset-password',
+  '/reset-password',
+  '/api/webhooks/uptime-kuma'
+];
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;

@@ -53,5 +53,34 @@ export const authService = {
     } catch (error) {
       return null;
     }
+  },
+
+  /**
+   * Genera un JWT stateless para la recuperación de contraseña
+   * Utiliza el hash de la contraseña actual como parte del secreto
+   * para invalidar el token en cuanto se cambie la contraseña.
+   */
+  async signRecoveryToken(userId: string, currentPasswordHash: string): Promise<string> {
+    const alg = 'HS256';
+    const dynamicSecret = new TextEncoder().encode(`${JWT_SECRET}-${currentPasswordHash}`);
+    return new SignJWT({ userId, purpose: 'password_reset' })
+      .setProtectedHeader({ alg })
+      .setIssuedAt()
+      .setExpirationTime('1h') // Válido por 1 hora
+      .sign(dynamicSecret);
+  },
+
+  /**
+   * Verifica el token de recuperación usando el hash actual.
+   */
+  async verifyRecoveryToken(token: string, currentPasswordHash: string): Promise<{ userId: string } | null> {
+    try {
+      const dynamicSecret = new TextEncoder().encode(`${JWT_SECRET}-${currentPasswordHash}`);
+      const { payload } = await jwtVerify(token, dynamicSecret);
+      if (payload.purpose !== 'password_reset') return null;
+      return payload as unknown as { userId: string };
+    } catch (error) {
+      return null;
+    }
   }
 };
