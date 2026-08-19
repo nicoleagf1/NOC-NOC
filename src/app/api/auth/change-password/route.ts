@@ -42,11 +42,13 @@ export async function POST(request: Request) {
 
       await userService.updateLastLogin(user.id);
 
+      const isHttps = request.url.startsWith('https://') || request.headers.get('x-forwarded-proto') === 'https';
+
       (await cookies()).set({
         name: 'noc_session',
         value: token,
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isHttps,
         sameSite: 'lax',
         path: '/',
         maxAge: 60 * 60 * 12
