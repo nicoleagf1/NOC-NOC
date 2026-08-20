@@ -68,10 +68,12 @@ export function HostsTab() {
   };
 
   const getInstallSnippet = () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://noc-noc.local';
+    
     if (editingHost?.os_type === 'Windows') {
-      return `Invoke-WebRequest -Uri https://noc-noc.local/install-windows-exporter.ps1 -OutFile install.ps1; .\\install.ps1`;
+      return `Invoke-WebRequest -Uri ${origin}/install-windows-exporter.ps1 -OutFile install.ps1; .\\install.ps1`;
     }
-    return `curl -sSL https://noc-noc.local/install-node-exporter.sh | bash`;
+    return `curl -sSL ${origin}/install-node-exporter.sh | bash`;
   };
 
   const copySnippet = () => {
