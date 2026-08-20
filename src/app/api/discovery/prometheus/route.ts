@@ -37,8 +37,9 @@ export async function GET(req: Request) {
         targetsByEnv[host.environment] = [];
         hostsDetails[host.environment] = [];
       }
-      // Asumimos que Node Exporter corre en el puerto 9100
-      targetsByEnv[host.environment].push(`${host.ip_address}:9100`);
+      
+      const port = host.os_type === 'Windows' ? 9182 : 9100;
+      targetsByEnv[host.environment].push(`${host.ip_address}:${port}`);
       hostsDetails[host.environment].push(host);
     });
 
