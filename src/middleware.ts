@@ -10,7 +10,9 @@ const publicRoutes = [
   '/api/auth/recover',
   '/api/auth/reset-password',
   '/reset-password',
-  '/api/webhooks/uptime-kuma'
+  '/api/webhooks/uptime-kuma',
+  '/install-windows-exporter.ps1',
+  '/install-node-exporter.sh'
 ];
 
 export async function middleware(request: NextRequest) {
