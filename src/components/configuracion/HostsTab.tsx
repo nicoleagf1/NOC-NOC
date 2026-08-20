@@ -75,9 +75,35 @@ export function HostsTab() {
   };
 
   const copySnippet = () => {
-    navigator.clipboard.writeText(getInstallSnippet());
-    setCopiedSnippet(true);
-    setTimeout(() => setCopiedSnippet(false), 2000);
+    const text = getInstallSnippet();
+    
+    // Si estamos en un contexto seguro (HTTPS o localhost)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopiedSnippet(true);
+        setTimeout(() => setCopiedSnippet(false), 2000);
+      }).catch(err => console.error("Error copiando:", err));
+    } else {
+      // Fallback para HTTP en producción
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        setCopiedSnippet(true);
+        setTimeout(() => setCopiedSnippet(false), 2000);
+      } catch (err) {
+        console.error('No se pudo copiar el texto', err);
+      }
+      
+      textArea.remove();
+    }
   };
 
   return (
