@@ -230,9 +230,9 @@ export async function getInfrastructureDashboardData() {
   };
 
   const qHosts = 'count(up{job="node"}) or count(up)';
-  const qCpuAvg = '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)';
-  const qMemAvg = '100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100)';
-  const qDiskAvg = '100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100)';
+  const qCpuAvg = '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 or avg(rate(windows_cpu_time_total{mode="idle"}[5m])) * 100)';
+  const qMemAvg = '100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100 or sum(windows_os_physical_memory_free_bytes) / sum(windows_cs_physical_memory_bytes) * 100)';
+  const qDiskAvg = '100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100 or sum(windows_logical_disk_free_bytes) / sum(windows_logical_disk_size_bytes) * 100)';
 
   const [resHosts, resCpu, resMem, resDisk] = await Promise.all([
     queryPrometheus(qHosts),
@@ -264,12 +264,12 @@ export async function getInfrastructureDashboardData() {
     };
   });
 
-  const qTopHosts = 'topk(5, 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100))';
+  const qTopHosts = 'topk(5, 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 or avg by (instance) (rate(windows_cpu_time_total{mode="idle"}[5m])) * 100))';
   const resTopHosts = await queryPrometheus(qTopHosts);
   
-  const qMemByInstance = '100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100)';
-  const qDiskByInstance = '100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100)';
-  const qNetOutByInstance = 'rate(node_network_transmit_bytes_total[5m]) * 8 / 1024 / 1024';
+  const qMemByInstance = '100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 or windows_os_physical_memory_free_bytes / windows_cs_physical_memory_bytes * 100)';
+  const qDiskByInstance = '100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100 or windows_logical_disk_free_bytes / windows_logical_disk_size_bytes * 100)';
+  const qNetOutByInstance = '(rate(node_network_transmit_bytes_total[5m]) or rate(windows_net_bytes_sent_total[5m])) * 8 / 1024 / 1024';
 
   const [resMemInst, resDiskInst, resNetInst] = await Promise.all([
     queryPrometheus(qMemByInstance),
@@ -302,13 +302,13 @@ export async function getInfrastructureDashboardData() {
     };
   });
 
-  const qCpuRange = '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)';
-  const qMemRange = '100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100)';
-  const qDiskRange = '100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100)';
-  const qNetIn = 'sum(rate(node_network_receive_bytes_total[5m])) * 8 / 1024 / 1024';
-  const qNetOut = 'sum(rate(node_network_transmit_bytes_total[5m])) * 8 / 1024 / 1024';
-  const qIopsRead = 'sum(rate(node_disk_reads_completed_total[5m]))';
-  const qIopsWrite = 'sum(rate(node_disk_writes_completed_total[5m]))';
+  const qCpuRange = '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 or avg(rate(windows_cpu_time_total{mode="idle"}[5m])) * 100)';
+  const qMemRange = '100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100 or sum(windows_os_physical_memory_free_bytes) / sum(windows_cs_physical_memory_bytes) * 100)';
+  const qDiskRange = '100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100 or sum(windows_logical_disk_free_bytes) / sum(windows_logical_disk_size_bytes) * 100)';
+  const qNetIn = '(sum(rate(node_network_receive_bytes_total[5m])) or sum(rate(windows_net_bytes_received_total[5m]))) * 8 / 1024 / 1024';
+  const qNetOut = '(sum(rate(node_network_transmit_bytes_total[5m])) or sum(rate(windows_net_bytes_sent_total[5m]))) * 8 / 1024 / 1024';
+  const qIopsRead = 'sum(rate(node_disk_reads_completed_total[5m])) or sum(rate(windows_logical_disk_reads_total[5m]))';
+  const qIopsWrite = 'sum(rate(node_disk_writes_completed_total[5m])) or sum(rate(windows_logical_disk_writes_total[5m]))';
 
   const [rangeCpu, rangeMem, rangeDisk, rangeNetIn, rangeNetOut, rangeIopsR, rangeIopsW] = await Promise.all([
     queryRangePrometheus(qCpuRange, start, end, step),
