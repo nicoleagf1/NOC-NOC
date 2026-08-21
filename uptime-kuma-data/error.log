@@ -428,3 +428,33 @@
   hostname: 'mariadb',
   fatal: true
 }
+[2026-08-21 11:23:17] Error: aborted
+    at PendingOperation.abort (/app/node_modules/tarn/dist/PendingOperation.js:25:21)
+    at /app/node_modules/tarn/dist/Pool.js:208:25
+    at Array.map (<anonymous>)
+    at /app/node_modules/tarn/dist/Pool.js:207:53
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Client_MySQL2.destroy (/app/node_modules/knex/lib/client.js:358:9)
+    at async RedBeanNode.close (/app/node_modules/redbean-node/dist/redbean-node.js:378:9)
+    at async Database.close (/app/server/database.js:759:13)
+    at async Object.shutdownFunction [as onShutdown] (/app/server/server.js:1963:5)
+[2026-08-21 11:23:17] Error: aborted
+    at PendingOperation.abort (/app/node_modules/tarn/dist/PendingOperation.js:25:21)
+    at /app/node_modules/tarn/dist/Pool.js:208:25
+    at Array.map (<anonymous>)
+    at /app/node_modules/tarn/dist/Pool.js:207:53
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Client_MySQL2.destroy (/app/node_modules/knex/lib/client.js:358:9)
+    at async RedBeanNode.close (/app/node_modules/redbean-node/dist/redbean-node.js:378:9)
+    at async Database.close (/app/server/database.js:759:13)
+    at async Object.shutdownFunction [as onShutdown] (/app/server/server.js:1963:5)
+[2026-08-21 11:23:17] Error: aborted
+    at PendingOperation.abort (/app/node_modules/tarn/dist/PendingOperation.js:25:21)
+    at /app/node_modules/tarn/dist/Pool.js:208:25
+    at Array.map (<anonymous>)
+    at /app/node_modules/tarn/dist/Pool.js:207:53
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Client_MySQL2.destroy (/app/node_modules/knex/lib/client.js:358:9)
+    at async RedBeanNode.close (/app/node_modules/redbean-node/dist/redbean-node.js:378:9)
+    at async Database.close (/app/server/database.js:759:13)
+    at async Object.shutdownFunction [as onShutdown] (/app/server/server.js:1963:5)
