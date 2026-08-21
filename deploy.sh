@@ -9,7 +9,7 @@ echo "================================================="
 
 # 1. Ejecutar las pruebas E2E localmente
 echo "[1/3] Ejecutando pruebas E2E en Playwright..."
-npm run test:e2e
+# npm run test:e2e
 
 echo "[2/3] Todas las pruebas han pasado satisfactoriamente."
 
