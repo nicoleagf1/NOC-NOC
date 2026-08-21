@@ -1,0 +1,18 @@
+{
+	"ulid": "01M0HRS2MYJH78GF75HGHYCA7A",
+	"minTime": 1787292003221,
+	"maxTime": 1787299200000,
+	"stats": {
+		"numSamples": 387360,
+		"numFloatSamples": 387360,
+		"numSeries": 797,
+		"numChunks": 3229
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01M0HRS2MYJH78GF75HGHYCA7A"
+		]
+	},
+	"version": 1
+}

@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # 1. Monitoreo del propio Prometheus
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 2. Monitoreo de tu aplicación Node.js (Salud interna)
+  - job_name: 'noc-noc-app'
+    scrape_interval: 5s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['noc-noc-app:3000']
+
+  # 3. ¡EL MÁS IMPORTANTE! Descubrimiento de tus servidores Windows/Linux registrados en NOC-NOC
+  - job_name: 'noc-noc-hosts'
+    http_sd_configs:
+      - url: 'http://noc-noc-app:3000/api/discovery/prometheus'
+        basic_auth:
+          username: 'prometheus'
+          password: 'secret123'
+

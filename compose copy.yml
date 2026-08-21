@@ -1,0 +1,23 @@
+networks:
+  database:
+    name: database
+    external: true
+  proxy:
+    name: proxy
+    external: true
+services:
+  noc-noc-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: noc-noc-app
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    networks:
+      - proxy
+      - database

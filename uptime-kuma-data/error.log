@@ -1,0 +1,430 @@
+[2026-05-13 15:46:01] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 15:46:01] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 15:46:04] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 15:46:04] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 15:47:07] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 15:47:07] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 15:47:07] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 15:47:28] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
+[2026-05-13 15:48:07] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
+[2026-05-13 15:48:07] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
+[2026-05-13 15:48:07] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
+[2026-05-13 15:53:07] Error: connect ETIMEDOUT
+    at Connection._handleTimeoutError (/app/node_modules/mysql2/lib/base/connection.js:200:17)
+    at listOnTimeout (node:internal/timers:585:17)
+    at process.processTimers (node:internal/timers:521:7) {
+  errorno: 'ETIMEDOUT',
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  fatal: true
+}
+[2026-05-13 15:53:22] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 15:53:22] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 15:53:22] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:22:37] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:22:37] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:22:37] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:22:37] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:23:43] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:23:43] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:23:43] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:24:00] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:24:49] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:24:49] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:24:49] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:25:28] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:25:55] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:25:55] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:25:55] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:26:56] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:26:59] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:26:59] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:26:59] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:28:06] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:28:06] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:28:06] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:28:25] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:29:12] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:29:12] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:29:12] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:29:53] Error: connect EHOSTUNREACH 172.20.0.3:3306
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -113,
+  code: 'EHOSTUNREACH',
+  syscall: 'connect',
+  address: '172.20.0.3',
+  port: 3306,
+  fatal: true
+}
+[2026-05-13 16:30:12] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
+[2026-05-13 16:30:12] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
+[2026-05-13 16:30:12] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
+[2026-05-13 16:31:12] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
+[2026-05-13 16:31:12] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
+[2026-05-13 16:31:12] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
+[2026-05-13 16:31:18] Error: getaddrinfo ENOTFOUND mariadb
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'mariadb',
+  fatal: true
+}
