@@ -8,12 +8,10 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # 2. Monitoreo de tu aplicación Node.js (Salud interna)
-  - job_name: 'noc-noc-app'
-    scrape_interval: 5s
-    metrics_path: '/metrics'
+  # 2. Monitoreo del servidor principal (Linux) vía Node Exporter
+  - job_name: 'node-exporter'
     static_configs:
-      - targets: ['noc-noc-app:3000']
+      - targets: ['node-exporter:9100']
 
   # 3. ¡EL MÁS IMPORTANTE! Descubrimiento de tus servidores Windows/Linux registrados en NOC-NOC
   - job_name: 'noc-noc-hosts'
@@ -22,4 +20,3 @@ scrape_configs:
         basic_auth:
           username: 'prometheus'
           password: 'secret123'
-
