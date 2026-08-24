@@ -118,7 +118,22 @@ export const userService = {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(data.isActive);
     }
-    // Añade más campos si lo necesitas (email, nombre)
+    if (data.email !== undefined) {
+      updates.push(`email = $${paramIndex++}`);
+      values.push(data.email);
+    }
+    if (data.username !== undefined) {
+      updates.push(`username = $${paramIndex++}`);
+      values.push(data.username);
+    }
+    if (data.firstName !== undefined) {
+      updates.push(`first_name = $${paramIndex++}`);
+      values.push(data.firstName);
+    }
+    if (data.lastName !== undefined) {
+      updates.push(`last_name = $${paramIndex++}`);
+      values.push(data.lastName);
+    }
     
     if (updates.length === 0) return true;
 

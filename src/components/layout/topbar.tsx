@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, Bell, ChevronDown, LogOut, User } from "lucide-react";
+import { Menu, Bell, ChevronDown, LogOut, User, Home } from "lucide-react";
 
 export function Topbar({ isSidebarCollapsed }: { isSidebarCollapsed: boolean }) {
   const router = useRouter();
@@ -82,43 +82,43 @@ export function Topbar({ isSidebarCollapsed }: { isSidebarCollapsed: boolean }) 
         {/* User Profile Dropdown */}
         <div className="relative">
           <div 
-            className="flex items-center cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors"
+            className="flex items-center gap-3 cursor-pointer group"
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
-            <div className="w-10 h-10 rounded-full bg-vepagos-green flex items-center justify-center text-vepagos-navy font-bold text-sm mr-3">
-              {getInitials()}
+            <span className="text-sm font-bold text-white group-hover:text-gray-200 transition-colors">
+              {user ? `${user.firstName} ${user.lastName}` : "Cargando..."}
+            </span>
+            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm group-hover:bg-gray-100 transition-colors">
+              <User className="w-5 h-5 text-vepagos-navy" strokeWidth={1.5} />
             </div>
-            <div className="flex flex-col mr-2">
-              <span className="text-sm font-bold text-white leading-tight">
-                {user ? `${user.firstName} ${user.lastName}` : "Cargando..."}
-              </span>
-              <span className="text-xs text-gray-400 leading-tight uppercase">
-                {user?.roleName || "Usuario"}
-              </span>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </div>
 
           {/* Dropdown Menu */}
           {isDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 z-50">
-              <div className="px-4 py-2 border-b border-gray-100">
-                <p className="text-sm text-vepagos-navy font-bold">@{user?.username || "user"}</p>
+            <div className="absolute right-0 mt-3 p-3 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 z-50 min-w-[240px]">
+              <div className="flex items-center justify-between gap-1">
+                <button 
+                  className="flex flex-col items-center justify-center space-y-1.5 p-2 flex-1 hover:bg-gray-50 rounded-lg transition-all group"
+                  onClick={() => { setIsDropdownOpen(false); router.push("/"); }}
+                >
+                  <Home className="w-5 h-5 text-vepagos-navy group-hover:scale-110 transition-transform" strokeWidth={1.5} />
+                  <span className="text-[11px] font-semibold text-vepagos-navy">Home</span>
+                </button>
+                <button 
+                  className="flex flex-col items-center justify-center space-y-1.5 p-2 flex-1 hover:bg-gray-50 rounded-lg transition-all group"
+                  onClick={() => { setIsDropdownOpen(false); router.push("/perfil"); }}
+                >
+                  <User className="w-5 h-5 text-vepagos-navy group-hover:scale-110 transition-transform" strokeWidth={1.5} />
+                  <span className="text-[11px] font-semibold text-vepagos-navy">Perfil</span>
+                </button>
+                <button 
+                  className="flex flex-col items-center justify-center space-y-1.5 p-2 flex-1 hover:bg-red-50 rounded-lg transition-all group"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="w-5 h-5 text-vepagos-navy group-hover:text-red-500 group-hover:scale-110 transition-all" strokeWidth={1.5} />
+                  <span className="text-[11px] font-semibold text-vepagos-navy group-hover:text-red-600">Salir</span>
+                </button>
               </div>
-              <button 
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
-                onClick={() => { setIsDropdownOpen(false); /* A futuro: mi perfil */ }}
-              >
-                <User className="w-4 h-4 mr-2 text-gray-400" />
-                Mi Perfil
-              </button>
-              <button 
-                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center font-bold"
-                onClick={handleLogout}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
-              </button>
             </div>
           )}
         </div>

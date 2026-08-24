@@ -77,7 +77,7 @@ export function Sidebar({ isCollapsed, onToggle }: { isCollapsed: boolean, onTog
       {/* Logo */}
       <div className={`h-[72px] flex items-center justify-center border-b border-gray-100 ${isCollapsed ? 'px-2' : 'px-6'}`}>
         <img
-          src="/logo3.png"
+          src={isCollapsed ? "/isotipo-gradient.png" : "/logo3.png"}
           alt="Vepagos Logo"
           className={`object-contain transition-all duration-300 ${isCollapsed ? 'w-40 h-40' : 'h-40 w-auto max-w-full'}`}
         />
