@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# prometheus data
+prometheus_data/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
