@@ -21,11 +21,13 @@ export default function InfraestructuraPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [grupo, setGrupo] = useState("TODOS");
+  const [periodo, setPeriodo] = useState("24h");
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/metrics/infrastructure");
+      const res = await fetch(`/api/metrics/infrastructure?grupo=${grupo}&periodo=${periodo}`);
       if (!res.ok) throw new Error("Failed to fetch infrastructure data");
       const json = await res.json();
       if (json.success) {
@@ -63,16 +65,34 @@ export default function InfraestructuraPage() {
         <div className="flex items-end space-x-3">
           <div className="flex flex-col">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Grupo</label>
-            <div className="flex items-center justify-between border border-gray-200 bg-white rounded-[var(--radius-input)] px-3 py-2 w-40 cursor-pointer">
-              <span className="text-xs font-bold text-vepagos-navy">TODOS LOS HOSTS</span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
+            <div className="relative">
+              <select
+                value={grupo}
+                onChange={(e) => { setGrupo(e.target.value); setTimeout(fetchData, 50); }}
+                className="appearance-none border border-gray-200 bg-white rounded-[var(--radius-input)] pl-3 pr-8 py-2 w-40 cursor-pointer text-xs font-bold text-vepagos-navy focus:outline-none focus:border-vepagos-green"
+              >
+                <option value="TODOS">TODOS LOS HOSTS</option>
+                <option value="LINUX">LINUX SERVERS</option>
+                <option value="WINDOWS">WINDOWS SERVERS</option>
+                <option value="DATABASE">DATABASES</option>
+              </select>
+              <ChevronDown className="w-3 h-3 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
           <div className="flex flex-col">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Periodo</label>
-            <div className="flex items-center justify-between border border-gray-200 bg-white rounded-[var(--radius-input)] px-3 py-2 w-48 cursor-pointer">
-              <span className="text-xs font-bold text-vepagos-navy">ÚLTIMAS <span className="font-normal text-gray-500">24 HORAS</span></span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
+            <div className="relative">
+              <select
+                value={periodo}
+                onChange={(e) => { setPeriodo(e.target.value); setTimeout(fetchData, 50); }}
+                className="appearance-none border border-gray-200 bg-white rounded-[var(--radius-input)] pl-3 pr-8 py-2 w-48 cursor-pointer text-xs font-bold text-vepagos-navy focus:outline-none focus:border-vepagos-green"
+              >
+                <option value="1h">ÚLTIMA HORA</option>
+                <option value="6h">ÚLTIMAS 6 HORAS</option>
+                <option value="24h">ÚLTIMAS 24 HORAS</option>
+                <option value="7d">ÚLTIMOS 7 DÍAS</option>
+              </select>
+              <ChevronDown className="w-3 h-3 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
           <button 
