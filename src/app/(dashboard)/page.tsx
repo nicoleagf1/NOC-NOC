@@ -120,6 +120,10 @@ export default function DashboardPage() {
     ? Object.keys(data.cpuHistory[0]).filter(k => k !== 'time')
     : [];
 
+  const digitel = data?.fortigate?.digitel;
+  const netuno = data?.fortigate?.netuno;
+  const formatMbps = (value?: number) => value === undefined ? "--" : value.toFixed(2);
+
   return (
     <div className="space-y-6 pb-20 relative animate-in fade-in duration-500">
       {/* Header */}
@@ -335,23 +339,23 @@ export default function DashboardPage() {
              <h2 className="text-sm font-bold text-vepagos-navy uppercase tracking-wider mb-1">ISP Principal: Digitel</h2>
              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-3 font-bold">Interfaz Fortigate: WAN1</p>
              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-2 h-2 rounded-full bg-vepagos-green animate-pulse"></div>
-                <span className="text-xs font-bold text-vepagos-green tracking-wide">ENLACE SD-WAN ACTIVO</span>
+               <div className={`w-2 h-2 rounded-full ${digitel?.isUp ? 'bg-vepagos-green animate-pulse' : 'bg-red-500'}`}></div>
+               <span className={`text-xs font-bold tracking-wide ${digitel?.isUp ? 'text-vepagos-green' : 'text-red-500'}`}>{digitel?.isUp ? 'ENLACE SD-WAN ACTIVO' : 'ENLACE SD-WAN CAÍDO'}</span>
              </div>
              
              <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 border border-gray-100 rounded p-3 text-center">
                    <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Tasa de Bajada (Rx)</div>
-                   <div className="text-xl font-bold text-vepagos-navy animate-pulse">-- <span className="text-xs text-gray-400 font-normal">Mbps</span></div>
+                   <div className="text-xl font-bold text-vepagos-navy">{formatMbps(digitel?.rxMbps)} <span className="text-xs text-gray-400 font-normal">Mbps</span></div>
                 </div>
                 <div className="bg-gray-50 border border-gray-100 rounded p-3 text-center">
                    <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Tasa de Subida (Tx)</div>
-                   <div className="text-xl font-bold text-vepagos-navy animate-pulse">-- <span className="text-xs text-gray-400 font-normal">Mbps</span></div>
+                   <div className="text-xl font-bold text-vepagos-navy">{formatMbps(digitel?.txMbps)} <span className="text-xs text-gray-400 font-normal">Mbps</span></div>
                 </div>
              </div>
              <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase">
                <span>SLA (Latencia a 8.8.8.8): -- ms</span>
-               <span className="bg-amber-50 text-amber-600 px-2 py-1 rounded">Esperando Métricas REST API</span>
+               <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded">Prometheus · 5 min</span>
              </div>
            </div>
         </Card>
@@ -365,23 +369,23 @@ export default function DashboardPage() {
              <h2 className="text-sm font-bold text-vepagos-navy uppercase tracking-wider mb-1">ISP Secundario: Netuno</h2>
              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-3 font-bold">Interfaz Fortigate: WAN2</p>
              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                <span className="text-xs font-bold text-indigo-500 tracking-wide">ENLACE SD-WAN ACTIVO</span>
+               <div className={`w-2 h-2 rounded-full ${netuno?.isUp ? 'bg-indigo-500 animate-pulse' : 'bg-red-500'}`}></div>
+               <span className={`text-xs font-bold tracking-wide ${netuno?.isUp ? 'text-indigo-500' : 'text-red-500'}`}>{netuno?.isUp ? 'ENLACE SD-WAN ACTIVO' : 'ENLACE SD-WAN CAÍDO'}</span>
              </div>
              
              <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 border border-gray-100 rounded p-3 text-center">
                    <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Tasa de Bajada (Rx)</div>
-                   <div className="text-xl font-bold text-vepagos-navy animate-pulse">-- <span className="text-xs text-gray-400 font-normal">Mbps</span></div>
+                   <div className="text-xl font-bold text-vepagos-navy">{formatMbps(netuno?.rxMbps)} <span className="text-xs text-gray-400 font-normal">Mbps</span></div>
                 </div>
                 <div className="bg-gray-50 border border-gray-100 rounded p-3 text-center">
                    <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Tasa de Subida (Tx)</div>
-                   <div className="text-xl font-bold text-vepagos-navy animate-pulse">-- <span className="text-xs text-gray-400 font-normal">Mbps</span></div>
+                   <div className="text-xl font-bold text-vepagos-navy">{formatMbps(netuno?.txMbps)} <span className="text-xs text-gray-400 font-normal">Mbps</span></div>
                 </div>
              </div>
              <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase">
                <span>SLA (Latencia a 8.8.8.8): -- ms</span>
-               <span className="bg-amber-50 text-amber-600 px-2 py-1 rounded">Esperando Métricas REST API</span>
+               <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded">Prometheus · 5 min</span>
              </div>
            </div>
         </Card>

@@ -215,6 +215,38 @@ export async function getMonitoredHosts() {
   }
 }
 
+export async function getFortigateWanMetrics() {
+  const interfaces = [
+    { key: 'digitel', name: 'wan2' },
+    { key: 'netuno', name: 'wan1' }
+  ];
+
+  const metrics = await Promise.all(interfaces.map(async ({ key, name }) => {
+    const [rx, tx, link] = await Promise.all([
+      queryPrometheus(`rate(fortigate_interface_receive_bytes_total{name="${name}"}[5m]) * 8 / 1000000`),
+      queryPrometheus(`rate(fortigate_interface_transmit_bytes_total{name="${name}"}[5m]) * 8 / 1000000`),
+      queryPrometheus(`fortigate_interface_link_up{name="${name}"}`)
+    ]);
+
+    const value = (result: any[]) => result[0]?.value?.[1] ? parseFloat(result[0].value[1]) : 0;
+    return {
+      key,
+      rxMbps: Number(value(rx).toFixed(2)),
+      txMbps: Number(value(tx).toFixed(2)),
+      isUp: value(link) === 1
+    };
+  }));
+
+  return metrics.reduce<Record<string, { rxMbps: number; txMbps: number; isUp: boolean }>>((result, metric) => {
+    result[metric.key] = {
+      rxMbps: metric.rxMbps,
+      txMbps: metric.txMbps,
+      isUp: metric.isUp
+    };
+    return result;
+  }, {});
+}
+
 
 export async function getInfrastructureDashboardData(grupo = 'TODOS', periodo = '24h') {
   const end = Math.floor(Date.now() / 1000);

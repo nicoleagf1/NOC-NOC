@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
-import { getGlobalKPIs, getHistoricalCpuUsage, getServiceStatuses, getRecentIncidents, getMonitoredHosts } from '@/lib/services/metricsService';
+import { getGlobalKPIs, getHistoricalCpuUsage, getServiceStatuses, getRecentIncidents, getMonitoredHosts, getFortigateWanMetrics } from '@/lib/services/metricsService';
 
 export const dynamic = 'force-dynamic'; // Asegura que siempre sea en tiempo real
 
 export async function GET() {
   try {
-    const [kpis, cpuHistory, services, incidents, hosts] = await Promise.all([
+    const [kpis, cpuHistory, services, incidents, hosts, fortigate] = await Promise.all([
       getGlobalKPIs(),
       getHistoricalCpuUsage(24), // Últimas 24 horas
       getServiceStatuses(),
       getRecentIncidents(5),
-      getMonitoredHosts()
+      getMonitoredHosts(),
+      getFortigateWanMetrics()
     ]);
 
     // Calcular resúmenes de servicios para el dashboard
@@ -39,7 +40,8 @@ export async function GET() {
         cpuHistory,
         services,
         incidents,
-        hosts
+        hosts,
+        fortigate
       }
     });
   } catch (error) {
