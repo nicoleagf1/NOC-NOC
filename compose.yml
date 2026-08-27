@@ -51,7 +51,7 @@ services:
       - proxy
 
   fortigate-exporter:
-    image: bluecmd/fortigate_exporter:latest
+    image: mwiget/fortigate_exporter:latest
     container_name: fortigate-exporter
     restart: unless-stopped
     ports:
