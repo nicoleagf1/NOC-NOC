@@ -20,3 +20,17 @@ scrape_configs:
         basic_auth:
           username: 'prometheus'
           password: 'secret123'
+
+  # 4. Monitoreo de Firewall Fortigate (Métricas WAN, CPU, Memoria, Interfaces)
+  - job_name: 'fortigate'
+    metrics_path: /probe
+    static_configs:
+      - targets:
+        - IP_DEL_FORTIGATE  # Reemplazar con la misma IP que pusiste en fortigate.yaml
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: fortigate-exporter:9710

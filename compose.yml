@@ -49,6 +49,20 @@ services:
     networks:
       - proxy
 
+  fortigate-exporter:
+    image: bluecmd/fortigate_exporter:latest
+    container_name: fortigate-exporter
+    restart: unless-stopped
+    ports:
+      - "9710:9710"
+    volumes:
+      - ./fortigate/fortigate.yaml:/etc/fortigate_exporter.yaml:ro
+    command:
+      - '-config'
+      - '/etc/fortigate_exporter.yaml'
+    networks:
+      - proxy
+
   uptime-kuma:
     image: louislam/uptime-kuma:2
     container_name: uptime-kuma
