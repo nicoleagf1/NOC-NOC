@@ -3,7 +3,5 @@
 # Reemplaza 'IP_DEL_FORTIGATE' con la IP local de administración del firewall (ej. 192.168.1.99)
 # Reemplaza 'TU_API_TOKEN_AQUI' con el token generado en FortiOS 7.2.3
 
-targets:
-  "https://192.168.0.1":
-    token: "TU_API_TOKEN_AQUI"
-    insecure: true
+"https://192.168.0.1:10443":
+  token: "41Qh8bbjzNh8d5k7rHdrN58H4r6ck1"

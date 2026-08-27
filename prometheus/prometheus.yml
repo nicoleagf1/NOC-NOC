@@ -26,7 +26,7 @@ scrape_configs:
     metrics_path: /probe
     static_configs:
       - targets:
-        - https://192.168.0.1  # Si usas un puerto diferente, ej: https://192.168.0.1:10443
+        - https://192.168.0.1:10443  # Si usas un puerto diferente, ej: https://192.168.0.1:10443
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
