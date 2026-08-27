@@ -61,6 +61,7 @@ services:
     command:
       - '-auth-file'
       - '/etc/fortigate_exporter.yaml'
+      - '-insecure'
     networks:
       - proxy
 
