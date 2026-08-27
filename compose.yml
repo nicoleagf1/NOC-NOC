@@ -59,7 +59,7 @@ services:
     volumes:
       - ./fortigate/fortigate.yaml:/etc/fortigate_exporter.yaml:ro
     command:
-      - '-config'
+      - '-auth-file'
       - '/etc/fortigate_exporter.yaml'
     networks:
       - proxy
