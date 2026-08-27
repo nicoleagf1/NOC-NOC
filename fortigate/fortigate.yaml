@@ -4,6 +4,6 @@
 # Reemplaza 'TU_API_TOKEN_AQUI' con el token generado en FortiOS 7.2.3
 
 targets:
-  192.168.0.1:
+  "https://192.168.0.1":
     token: "TU_API_TOKEN_AQUI"
     insecure: true
