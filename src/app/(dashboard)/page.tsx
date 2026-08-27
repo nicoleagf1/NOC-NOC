@@ -388,7 +388,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 items-start gap-6">
         
         {/* Estado General */}
         <Card className="p-6 col-span-1 flex flex-col">
@@ -430,14 +430,14 @@ export default function DashboardPage() {
         </Card>
 
         {/* CPU Chart (Prometheus Data) */}
-        <Card className="p-6 col-span-2 flex flex-col">
+        <Card className="p-6 col-span-2 flex min-h-[380px] flex-col">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-sm font-bold text-vepagos-navy uppercase tracking-wider">Uso de CPU (Últimas 24 Horas)</h2>
             <div className="flex items-center text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded">
               PROMETHEUS
             </div>
           </div>
-          <div className="flex-1 h-[250px]">
+          <div className="h-[250px] w-full shrink-0">
             {data?.cpuHistory && data.cpuHistory.length > 0 ? (
               <LineChart
                 className="h-full mt-4"
