@@ -1,29 +1,39 @@
 import { NextResponse } from 'next/server';
+import { connectionService } from '@/lib/services/connectionService';
+import { isMasked } from '@/lib/security';
 
 export async function POST(request: Request) {
   try {
-    const { type, url, authType, authCredentials } = await request.json();
+    const { id, type, url, authType, authCredentials } = await request.json();
 
     if (!url) {
       return NextResponse.json({ success: false, error: 'URL es requerida' }, { status: 400 });
     }
 
     let testUrl = url;
+    let credentials = authCredentials;
+    if (id && (!credentials || isMasked(credentials))) {
+      const savedConnection = await connectionService.getConnectionById(id, false);
+      credentials = savedConnection?.authCredentials || '';
+    }
     let headers: Record<string, string> = {};
 
     // Preparar autenticación si aplica
-    if (authType === 'basic' && authCredentials) {
+    const usesBearer = authType === 'bearer' || type === 'fortigate';
+    if (authType === 'basic' && credentials) {
       // Basic auth usa "username:password" convertido a base64
-      const encoded = Buffer.from(authCredentials).toString('base64');
+      const encoded = Buffer.from(credentials).toString('base64');
       headers['Authorization'] = `Basic ${encoded}`;
-    } else if (authType === 'bearer' && authCredentials) {
-      headers['Authorization'] = `Bearer ${authCredentials}`;
+    } else if (usesBearer && credentials) {
+      headers['Authorization'] = `Bearer ${credentials}`;
     }
 
     // Adaptar la URL de prueba según el tipo
     if (type === 'prometheus') {
       // Prometheus tiene el endpoint -/healthy o el api/v1/query
       testUrl = `${url.replace(/\/$/, '')}/api/v1/query?query=up`;
+    } else if (type === 'fortigate') {
+      testUrl = `${url.replace(/\/$/, '')}/api/v2/monitor/system/status`;
     } else if (type === 'uptime-kuma') {
       // Para Uptime Kuma podemos testear el dashboard principal o un status
       testUrl = `${url.replace(/\/$/, '')}/`;

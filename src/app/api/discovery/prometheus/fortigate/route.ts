@@ -21,10 +21,10 @@ export async function GET(request: Request) {
 
   try {
     // Obtener todos los firewalls Fortigate activos
-    const res = await query(\`
+    const res = await query(`
       SELECT url FROM monitoring_connections 
       WHERE type = 'fortigate' AND is_active = TRUE
-    \`);
+    `);
 
     const targets = res.rows.map(row => row.url).filter(Boolean);
 

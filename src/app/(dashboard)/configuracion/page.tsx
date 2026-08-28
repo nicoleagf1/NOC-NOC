@@ -428,7 +428,14 @@ export default function ConfiguracionPage() {
                 <select 
                   className="w-full text-sm border border-gray-200 rounded-md p-2 bg-gray-50"
                   value={editingConnection.type}
-                  onChange={e => setEditingConnection({...editingConnection, type: e.target.value as any})}
+                  onChange={e => {
+                    const type = e.target.value as ConnectionDTO['type'];
+                    setEditingConnection({
+                      ...editingConnection,
+                      type,
+                      authType: type === 'fortigate' ? 'bearer' : editingConnection.authType
+                    });
+                  }}
                 >
                   <option value="prometheus">Prometheus TSDB</option>
                   <option value="uptime-kuma">Uptime Kuma</option>

@@ -23,7 +23,8 @@ export async function middleware(request: NextRequest) {
   if (
     path.startsWith('/_next') || 
     path.startsWith('/favicon') ||
-    publicRoutes.includes(path)
+    publicRoutes.includes(path) ||
+    path.startsWith('/api/discovery/prometheus/')
   ) {
     return NextResponse.next();
   }

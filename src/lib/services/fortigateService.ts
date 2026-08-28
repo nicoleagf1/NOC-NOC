@@ -23,15 +23,14 @@ export const fortigateService = {
 
       // 2. Construir el contenido del archivo YAML
       let yamlContent = `---
-# Archivo autogenerado por NOC-NOC
+    # Archivo autogenerado por NOC-NOC
 
-targets:
-`;
+    `;
 
       for (const row of res.rows) {
         if (row.url && row.auth_credentials) {
           const token = decrypt(row.auth_credentials);
-          yamlContent += `  "${row.url}":\n    token: "${token}"\n    insecure: true\n`;
+          yamlContent += `"${row.url}":\n  token: "${token}"\n`;
         }
       }
 
