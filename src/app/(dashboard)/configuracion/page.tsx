@@ -266,11 +266,13 @@ export default function ConfiguracionPage() {
                     </div>
                     
                     <div className="flex items-center mb-4">
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center mr-4 ${conn.type === 'prometheus' ? 'bg-orange-100' : 'bg-green-100'}`}>
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center mr-4 ${conn.type === 'prometheus' ? 'bg-orange-100' : conn.type === 'fortigate' ? 'bg-blue-100' : 'bg-green-100'}`}>
                         {conn.type === 'prometheus' ? (
                           <Activity className="w-7 h-7 text-orange-500" />
+                        ) : conn.type === 'fortigate' ? (
+                          <ShieldCheck className="w-7 h-7 text-blue-600" />
                         ) : (
-                          <ShieldCheck className="w-7 h-7 text-green-600" />
+                          <Activity className="w-7 h-7 text-green-600" />
                         )}
                       </div>
                       <div>
@@ -430,6 +432,7 @@ export default function ConfiguracionPage() {
                 >
                   <option value="prometheus">Prometheus TSDB</option>
                   <option value="uptime-kuma">Uptime Kuma</option>
+                  <option value="fortigate">Fortigate (Métricas de Red)</option>
                 </select>
               </div>
 
@@ -438,39 +441,45 @@ export default function ConfiguracionPage() {
                 <input 
                   type="text" 
                   className="w-full text-sm border border-gray-200 rounded-md p-2"
-                  placeholder="ej. Prometheus Producción"
+                  placeholder={editingConnection.type === 'fortigate' ? "ej. Fortigate Principal" : "ej. Prometheus Producción"}
                   value={editingConnection.name || ''}
                   onChange={e => setEditingConnection({...editingConnection, name: e.target.value})}
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">URL Base (Endpoint)</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                  {editingConnection.type === 'fortigate' ? 'IP Base del Firewall' : 'URL Base (Endpoint)'}
+                </label>
                 <input 
                   type="url" 
                   className="w-full text-sm border border-gray-200 rounded-md p-2"
-                  placeholder="https://prometheus.tudominio.com"
+                  placeholder={editingConnection.type === 'fortigate' ? "https://192.168.0.1:10443" : "https://prometheus.tudominio.com"}
                   value={editingConnection.url || ''}
                   onChange={e => setEditingConnection({...editingConnection, url: e.target.value})}
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Autenticación</label>
-                <select 
-                  className="w-full text-sm border border-gray-200 rounded-md p-2 bg-gray-50"
-                  value={editingConnection.authType || 'none'}
-                  onChange={e => setEditingConnection({...editingConnection, authType: e.target.value as any})}
-                >
-                  <option value="none">Sin Autenticación (Abierto)</option>
-                  <option value="basic">Basic Auth (User:Password)</option>
-                  <option value="bearer">Bearer Token</option>
-                </select>
-              </div>
-
-              {editingConnection.authType !== 'none' && (
+              {editingConnection.type !== 'fortigate' ? (
                 <div>
-                  {editingConnection.authType === 'basic' ? (
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Autenticación</label>
+                  <select 
+                    className="w-full text-sm border border-gray-200 rounded-md p-2 bg-gray-50"
+                    value={editingConnection.authType || 'none'}
+                    onChange={e => setEditingConnection({...editingConnection, authType: e.target.value as any})}
+                  >
+                    <option value="none">Sin Autenticación (Abierto)</option>
+                    <option value="basic">Basic Auth (User:Password)</option>
+                    <option value="bearer">Bearer Token</option>
+                  </select>
+                </div>
+              ) : (
+                <input type="hidden" value="bearer" />
+              )}
+
+              {(editingConnection.authType !== 'none' || editingConnection.type === 'fortigate') && (
+                <div>
+                  {editingConnection.authType === 'basic' && editingConnection.type !== 'fortigate' ? (
                     <div className="flex gap-2">
                       <div className="flex-1">
                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Usuario</label>

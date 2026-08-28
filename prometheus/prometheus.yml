@@ -24,9 +24,11 @@ scrape_configs:
   # 4. Monitoreo de Firewall Fortigate (Métricas WAN, CPU, Memoria, Interfaces)
   - job_name: 'fortigate'
     metrics_path: /probe
-    static_configs:
-      - targets:
-        - https://192.168.0.1:10443  # Si usas un puerto diferente, ej: https://192.168.0.1:10443
+    http_sd_configs:
+      - url: 'http://noc-noc-app:3000/api/discovery/prometheus/fortigate'
+        basic_auth:
+          username: 'prometheus'
+          password: 'secret123'
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

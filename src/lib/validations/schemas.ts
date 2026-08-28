@@ -41,7 +41,7 @@ export const updateUserSchema = z.object({
 
 export const createConnectionSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio'),
-  type: z.enum(['prometheus', 'uptime-kuma']),
+  type: z.enum(['prometheus', 'uptime-kuma', 'fortigate']),
   url: z.string().url('Debe ser una URL válida'),
   authType: z.enum(['none', 'basic', 'bearer']).optional().default('none'),
   authCredentials: z.string().optional(),
@@ -50,7 +50,7 @@ export const createConnectionSchema = z.object({
 
 export const updateConnectionSchema = z.object({
   name: z.string().min(1).optional(),
-  type: z.enum(['prometheus', 'uptime-kuma']).optional(),
+  type: z.enum(['prometheus', 'uptime-kuma', 'fortigate']).optional(),
   url: z.string().url().optional(),
   authType: z.enum(['none', 'basic', 'bearer']).optional(),
   authCredentials: z.string().optional(),

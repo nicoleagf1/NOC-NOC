@@ -25,6 +25,12 @@ export async function POST(request: Request) {
     const body = result.data;
 
     const newConnection = await connectionService.createConnection(body);
+
+    if (body.type === 'fortigate') {
+      const { fortigateService } = require('@/lib/services/fortigateService');
+      await fortigateService.syncFortigateYaml();
+    }
+
     return NextResponse.json(newConnection, { status: 201 });
   } catch (error: any) {
     console.error('Error creating connection:', error);

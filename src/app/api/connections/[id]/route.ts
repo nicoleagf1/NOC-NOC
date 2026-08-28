@@ -26,6 +26,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Connection not found' }, { status: 404 });
     }
 
+    if (updatedConnection.type === 'fortigate') {
+      const { fortigateService } = require('@/lib/services/fortigateService');
+      await fortigateService.syncFortigateYaml();
+    }
+
     return NextResponse.json(updatedConnection);
   } catch (error: any) {
     console.error(`Error updating connection ${id}:`, error);
@@ -41,10 +46,16 @@ export async function DELETE(
   try {
     const params = await props.params;
     id = params.id;
+    const connectionToDelete = await connectionService.getConnectionById(id);
     const deleted = await connectionService.deleteConnection(id);
     
     if (!deleted) {
       return NextResponse.json({ error: 'Connection not found' }, { status: 404 });
+    }
+
+    if (connectionToDelete?.type === 'fortigate') {
+      const { fortigateService } = require('@/lib/services/fortigateService');
+      await fortigateService.syncFortigateYaml();
     }
 
     return new NextResponse(null, { status: 204 });
