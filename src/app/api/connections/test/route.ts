@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { connectionService } from '@/lib/services/connectionService';
 import { isMasked } from '@/lib/security';
+import https from 'node:https';
+import axios from 'axios';
 
 export async function POST(request: Request) {
   try {
@@ -43,15 +45,23 @@ export async function POST(request: Request) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos max
 
-    const response = await fetch(testUrl, { 
-      method: 'GET', 
-      headers,
-      signal: controller.signal
-    });
+    const response = type === 'fortigate'
+      ? await axios.get(testUrl, {
+          headers,
+          httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+          signal: controller.signal,
+          timeout: 5000,
+          validateStatus: () => true
+        })
+      : await fetch(testUrl, {
+          method: 'GET',
+          headers,
+          signal: controller.signal
+        });
     
     clearTimeout(timeoutId);
 
-    if (response.ok) {
+    if (response.status >= 200 && response.status < 300) {
       return NextResponse.json({ success: true, message: 'Conexión exitosa' });
     } else {
       return NextResponse.json({ 
