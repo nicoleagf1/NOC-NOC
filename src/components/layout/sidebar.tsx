@@ -16,7 +16,9 @@ import {
   Users,
   Link2,
   Settings,
-  ChevronLeft
+  ChevronLeft,
+  Router,
+  Cloud
 } from "lucide-react";
 
 const navItems = [
@@ -31,7 +33,8 @@ const navItems = [
     items: [
       { name: "SERVICIOS", href: "/servicios", icon: Server },
       { name: "INFRAESTRUCTURA", href: "/infraestructura", icon: Cpu },
-      { name: "SRVS. ALOJADOS", href: "/servidores-alojados", icon: Network },
+      { name: "REDES", href: "/redes", icon: Router },
+      { name: "SRVS. ALOJADOS", href: "/servidores-alojados", icon: Cloud },
       { name: "EVENTOS", href: "/eventos", icon: Clock },
     ],
   },

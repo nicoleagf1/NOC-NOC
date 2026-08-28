@@ -406,3 +406,101 @@ export async function getInfrastructureDashboardData(grupo = 'TODOS', periodo = 
     sparkDisk
   };
 }
+
+export async function getNetworkDashboardData(periodo = '24h') {
+  const end = Math.floor(Date.now() / 1000);
+  
+  let hours = 24;
+  if (periodo === '1h') hours = 1;
+  else if (periodo === '6h') hours = 6;
+  else if (periodo === '24h') hours = 24;
+  else if (periodo === '7d') hours = 24 * 7;
+  
+  const start = end - (hours * 3600);
+  
+  let step = "1h";
+  if (hours <= 1) step = "1m";
+  else if (hours <= 6) step = "5m";
+  else if (hours <= 24) step = "30m";
+  else step = "2h";
+
+  // KPIs actuales
+  const [resUp, resCpu, resMem, resSessions, resAlerts] = await Promise.all([
+    queryPrometheus('up{job="fortigate"}'),
+    queryPrometheus('fortigate_cpu_usage_ratio'),
+    queryPrometheus('fortigate_memory_usage_ratio'),
+    queryPrometheus('fortigate_current_sessions'),
+    fetchActiveAlerts()
+  ]);
+
+  const parseVal = (res: any[]) => res[0]?.value[1] ? parseFloat(res[0].value[1]) : 0;
+  
+  const isUp = resUp.length > 0 && resUp[0].value[1] === '1';
+  const cpu = parseVal(resCpu);
+  const memory = parseVal(resMem);
+  const sessions = parseVal(resSessions);
+  // Contamos alertas críticas o de red
+  const activeAlerts = resAlerts.filter((a: any) => a.labels?.job === 'fortigate' || a.labels?.severity === 'critical').length;
+
+  // Datos de interfaces actuales
+  const interfacesRes = await queryPrometheus('fortigate_interface_link_up');
+  const activeInterfacesCount = interfacesRes.filter(i => i.value[1] === '1').length;
+
+  const kpis = {
+    isUp,
+    cpu,
+    memory,
+    sessions,
+    activeAlerts,
+    activeInterfacesCount
+  };
+
+  // Traer las métricas de las WAN usando la función existente
+  const wanData = await getFortigateWanMetrics();
+
+  // Histórico para el AreaChart de las WANs
+  const qRxWan1 = 'rate(fortigate_interface_receive_bytes_total{name="wan1"}[5m]) * 8 / 1000000';
+  const qTxWan1 = 'rate(fortigate_interface_transmit_bytes_total{name="wan1"}[5m]) * 8 / 1000000';
+  const qRxWan2 = 'rate(fortigate_interface_receive_bytes_total{name="wan2"}[5m]) * 8 / 1000000';
+  const qTxWan2 = 'rate(fortigate_interface_transmit_bytes_total{name="wan2"}[5m]) * 8 / 1000000';
+
+  const [rangeRxWan1, rangeTxWan1, rangeRxWan2, rangeTxWan2] = await Promise.all([
+    queryRangePrometheus(qRxWan1, start, end, step),
+    queryRangePrometheus(qTxWan1, start, end, step),
+    queryRangePrometheus(qRxWan2, start, end, step),
+    queryRangePrometheus(qTxWan2, start, end, step)
+  ]);
+
+  const timeMap = new Map<number, any>();
+  const addRangeToMap = (rangeRes: any[], keyName: string) => {
+    if (!rangeRes[0]?.values) return;
+    rangeRes[0].values.forEach((v: any[]) => {
+      const ts = v[0] * 1000;
+      const val = parseFloat(v[1]);
+      if (!timeMap.has(ts)) {
+        const dateObj = new Date(ts);
+        timeMap.set(ts, {
+          timestamp: ts,
+          date: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          fullDate: dateObj.toLocaleString()
+        });
+      }
+      timeMap.get(ts)[keyName] = parseFloat(val.toFixed(2));
+    });
+  };
+
+  addRangeToMap(rangeRxWan1, "Netuno Descarga (Rx)");
+  addRangeToMap(rangeTxWan1, "Netuno Subida (Tx)");
+  addRangeToMap(rangeRxWan2, "Digitel Descarga (Rx)");
+  addRangeToMap(rangeTxWan2, "Digitel Subida (Tx)");
+
+  const timeSeriesData = Array.from(timeMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(entry => entry[1]);
+
+  return {
+    kpis,
+    wanData,
+    timeSeriesData
+  };
+}
