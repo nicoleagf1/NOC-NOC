@@ -458,3 +458,20 @@
     at async RedBeanNode.close (/app/node_modules/redbean-node/dist/redbean-node.js:378:9)
     at async Database.close (/app/server/database.js:759:13)
     at async Object.shutdownFunction [as onShutdown] (/app/server/server.js:1963:5)
+[2026-09-01 14:57:29] Error: insert into `stat_minutely` (`down`, `monitor_id`, `ping`, `ping_max`, `ping_min`, `timestamp`, `up`) values (0, 7, 1.44, 1.44, 1.44, 1788289020, 1) - Cannot add or update a child row: a foreign key constraint fails (`kuma`.`stat_minutely`, CONSTRAINT `stat_minutely_monitor_id_foreign` FOREIGN KEY (`monitor_id`) REFERENCES `monitor` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
+    at Packet.asError (/app/node_modules/mysql2/lib/packets/packet.js:740:17)
+    at Query.execute (/app/node_modules/mysql2/lib/commands/command.js:29:26)
+    at Connection.handlePacket (/app/node_modules/mysql2/lib/base/connection.js:475:34)
+    at PacketParser.onPacket (/app/node_modules/mysql2/lib/base/connection.js:93:12)
+    at PacketParser.executeStart (/app/node_modules/mysql2/lib/packet_parser.js:75:16)
+    at Socket.<anonymous> (/app/node_modules/mysql2/lib/base/connection.js:100:25)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_NO_REFERENCED_ROW_2',
+  errno: 1452,
+  sqlState: '23000',
+  sqlMessage: 'Cannot add or update a child row: a foreign key constraint fails (`kuma`.`stat_minutely`, CONSTRAINT `stat_minutely_monitor_id_foreign` FOREIGN KEY (`monitor_id`) REFERENCES `monitor` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)',
+  sql: 'insert into `stat_minutely` (`down`, `monitor_id`, `ping`, `ping_max`, `ping_min`, `timestamp`, `up`) values (0, 7, 1.44, 1.44, 1.44, 1788289020, 1)'
+}

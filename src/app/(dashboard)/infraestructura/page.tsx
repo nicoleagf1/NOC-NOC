@@ -24,10 +24,10 @@ export default function InfraestructuraPage() {
   const [grupo, setGrupo] = useState("TODOS");
   const [periodo, setPeriodo] = useState("24h");
 
-  const fetchData = async () => {
+  const fetchData = async (g: string, p: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/metrics/infrastructure?grupo=${grupo}&periodo=${periodo}`);
+      const res = await fetch(`/api/metrics/infrastructure?grupo=${g}&periodo=${p}`);
       if (!res.ok) throw new Error("Failed to fetch infrastructure data");
       const json = await res.json();
       if (json.success) {
@@ -44,10 +44,10 @@ export default function InfraestructuraPage() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60000); // 1 minuto
+    fetchData(grupo, periodo);
+    const interval = setInterval(() => fetchData(grupo, periodo), 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [grupo, periodo]);
 
   return (
     <div className="space-y-6 pb-12">
@@ -68,7 +68,7 @@ export default function InfraestructuraPage() {
             <div className="relative">
               <select
                 value={grupo}
-                onChange={(e) => { setGrupo(e.target.value); setTimeout(fetchData, 50); }}
+                onChange={(e) => setGrupo(e.target.value)}
                 className="appearance-none border border-gray-200 bg-white rounded-[var(--radius-input)] pl-3 pr-8 py-2 w-40 cursor-pointer text-xs font-bold text-vepagos-navy focus:outline-none focus:border-vepagos-green"
               >
                 <option value="TODOS">TODOS LOS HOSTS</option>
@@ -84,7 +84,7 @@ export default function InfraestructuraPage() {
             <div className="relative">
               <select
                 value={periodo}
-                onChange={(e) => { setPeriodo(e.target.value); setTimeout(fetchData, 50); }}
+                onChange={(e) => setPeriodo(e.target.value)}
                 className="appearance-none border border-gray-200 bg-white rounded-[var(--radius-input)] pl-3 pr-8 py-2 w-48 cursor-pointer text-xs font-bold text-vepagos-navy focus:outline-none focus:border-vepagos-green"
               >
                 <option value="1h">ÚLTIMA HORA</option>
@@ -96,7 +96,7 @@ export default function InfraestructuraPage() {
             </div>
           </div>
           <button 
-            onClick={fetchData}
+            onClick={() => fetchData(grupo, periodo)}
             className="flex items-center border border-vepagos-green text-vepagos-green hover:bg-vepagos-green/5 px-4 py-2 h-[34px] rounded-[var(--radius-pill)] text-xs font-bold transition-colors"
           >
             <RotateCw className={`w-3 h-3 mr-2 ${loading && data ? 'animate-spin' : ''}`} />

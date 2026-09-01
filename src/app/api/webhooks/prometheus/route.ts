@@ -17,29 +17,29 @@ export async function POST(request: Request) {
       const severity = severityRaw === 'WARNING' || severityRaw === 'INFO' ? severityRaw : 'CRITICAL';
       const summary = alert.annotations?.summary || alert.annotations?.description || 'Alerta de infraestructura detectada';
 
-      const serviceId = \`prom-\${alertname}-\${instance}\`;
+      const serviceId = `prom-${alertname}-${instance}`;
       
       if (status === 'firing') {
         // Verificar si ya existe una alerta activa para no duplicar
         const checkRes = await query(
-          \`SELECT incident_id FROM alert_incident_history WHERE service_id = $1 AND current_status = 'ACTIVA'\`,
+          `SELECT incident_id FROM alert_incident_history WHERE service_id = $1 AND current_status = 'ACTIVA'`,
           [serviceId]
         );
 
         if (checkRes.rows.length === 0) {
           await query(
-            \`INSERT INTO alert_incident_history 
+            `INSERT INTO alert_incident_history 
               (service_id, service_name, metric_trigger, severity, current_status, technical_detail, triggered_at)
-             VALUES ($1, $2, $3, $4, $5, $6, NOW())\`,
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
             [serviceId, instance, alertname, severity, 'ACTIVA', summary]
           );
         }
       } else if (status === 'resolved') {
         // Marcar como resuelta
         await query(
-          \`UPDATE alert_incident_history 
+          `UPDATE alert_incident_history 
            SET resolved_at = NOW(), technical_detail = CONCAT(technical_detail, ' | Resuelto: Autorecuperación de Prometheus')
-           WHERE service_id = $1 AND current_status != 'RESUELTA'\`,
+           WHERE service_id = $1 AND current_status != 'RESUELTA'`,
           [serviceId]
         );
       }
