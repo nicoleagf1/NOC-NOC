@@ -32,17 +32,25 @@ export async function GET() {
       const diffSecs = Math.floor((diffMs % 60000) / 1000);
       durationStr = `${String(diffHrs).padStart(2, '0')}:${String(diffMins).padStart(2, '0')}:${String(diffSecs).padStart(2, '0')}`;
 
+      const isPrometheus = row.service_id.startsWith('prom-');
+      const source = isPrometheus ? 'PROMETHEUS' : 'UPTIME KUMA';
+      const sourceCol = isPrometheus ? 'text-indigo-600 bg-indigo-50' : 'text-green-600 bg-green-50';
+      
+      let desc = 'Alerta detectada';
+      if (row.metric_trigger === 'uptime_ping') desc = 'Servicio no disponible (Down)';
+      if (row.metric_trigger === 'InstanceDown') desc = 'Servidor Inaccesible (Down)';
+
       return {
         id: row.id,
         sev,
         sevVar,
         date,
         time,
-        source: 'UPTIME KUMA',
-        sourceCol: 'text-green-600 bg-green-50',
+        source,
+        sourceCol,
         host: row.service_name || 'Desconocido',
         hostSub: row.endpoint_url || row.service_id,
-        desc: row.metric_trigger === 'uptime_ping' ? 'Servicio no disponible (Down)' : 'Alerta detectada',
+        desc,
         descSub: row.technical_detail || '',
         status: row.current_status,
         duration: durationStr

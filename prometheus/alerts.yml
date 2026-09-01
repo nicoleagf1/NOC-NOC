@@ -1,0 +1,11 @@
+groups:
+  - name: NOC_NOC_Alerts
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Host {{ $labels.instance }} caído"
+          description: "El objetivo {{ $labels.instance }} del trabajo {{ $labels.job }} ha estado caído por más de 1 minuto."
