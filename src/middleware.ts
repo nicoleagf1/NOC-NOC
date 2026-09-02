@@ -11,6 +11,7 @@ const publicRoutes = [
   '/api/auth/reset-password',
   '/reset-password',
   '/api/webhooks/uptime-kuma',
+  '/api/webhooks/prometheus',
   '/api/discovery/prometheus',
   '/install-windows-exporter.ps1',
   '/install-node-exporter.sh'

@@ -31,7 +31,7 @@ export default function AlertasActivasPage() {
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSev, setFilterSev] = useState("TODAS");
-  const [filterStatus, setFilterStatus] = useState("ACTIVAS");
+  const [filterStatus, setFilterStatus] = useState("ACTIVA");
   const [filterSource, setFilterSource] = useState("TODAS");
 
   // Estados para paginación
@@ -108,7 +108,7 @@ export default function AlertasActivasPage() {
   const handleResetFilters = () => {
     setSearchTerm("");
     setFilterSev("TODAS");
-    setFilterStatus("ACTIVAS");
+    setFilterStatus("ACTIVA");
     setFilterSource("TODAS");
     setCurrentPage(1);
   };

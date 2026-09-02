@@ -41,7 +41,7 @@ export async function GET() {
       if (row.metric_trigger === 'InstanceDown') desc = 'Servidor Inaccesible (Down)';
 
       return {
-        id: row.id,
+        id: row.incident_id,
         sev,
         sevVar,
         date,

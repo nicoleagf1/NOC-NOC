@@ -11,17 +11,18 @@ export async function GET() {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    // Obtener los eventos, ordenados del más reciente al más antiguo
+    // Todos los webhooks de monitorización escriben en el histórico unificado.
     const eventsRes = await query(`
       SELECT 
-        id, 
-        incident_type as type, 
-        severity, 
-        summary as desc, 
-        status, 
-        triggered_at as date,
-        host_id
-      FROM incident_history
+        incident_id as id,
+        service_id,
+        service_name,
+        metric_trigger,
+        severity,
+        current_status as status,
+        technical_detail as detail,
+        triggered_at as date
+      FROM alert_incident_history
       ORDER BY triggered_at DESC
       LIMIT 100
     `);
@@ -32,16 +33,21 @@ export async function GET() {
       
       let uiSev = row.severity === 'CRITICAL' ? 'CRÍTICO' : row.severity === 'WARNING' ? 'ADVERTENCIA' : 'INFORMATIVO';
       if (row.status === 'RESUELTA') uiSev = 'RESUELTO';
+
+      const isPrometheus = row.service_id.startsWith('prom-');
+      const source = isPrometheus ? 'PROMETHEUS' : 'UPTIME KUMA';
+      const sourceCol = isPrometheus ? 'text-blue-600 bg-blue-50' : 'text-green-600 bg-green-50';
       
       return {
         id: row.id,
         date: d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
         time: d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).toUpperCase(),
         type: row.status === 'RESUELTA' ? 'RESOLUCIÓN' : 'ALERTA',
-        source: row.type.replace('_', ' '),
-        sourceCol: row.type === 'UPTIME_KUMA' ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50',
-        host: row.host_id ? 'HOST ASIGNADO' : 'SISTEMA EXTERNO',
-        desc: row.desc,
+        source,
+        sourceCol,
+        host: row.service_name,
+        desc: row.detail || (row.metric_trigger === 'InstanceDown' ? 'Servidor inaccesible (Down)' : row.metric_trigger || 'Alerta detectada'),
+        descSub: row.detail,
         sev: uiSev,
         sevVar: uiSev === 'CRÍTICO' ? 'danger' : uiSev === 'ADVERTENCIA' ? 'warning' : uiSev === 'RESUELTO' ? 'success' : 'info'
       };
