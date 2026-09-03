@@ -3,6 +3,8 @@ import { query } from '@/lib/db';
 import { authService } from '@/lib/services/authService';
 import { cookies } from 'next/headers';
 
+const DISPLAY_TIME_ZONE = 'America/Caracas';
+
 export async function GET() {
   try {
     // Validar sesión (opcional pero recomendado para rutas protegidas)
@@ -40,8 +42,8 @@ export async function GET() {
       
       return {
         id: row.id,
-        date: d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
-        time: d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).toUpperCase(),
+        date: d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', timeZone: DISPLAY_TIME_ZONE }).toUpperCase(),
+        time: d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: DISPLAY_TIME_ZONE }).toUpperCase(),
         type: row.status === 'RESUELTA' ? 'RESOLUCIÓN' : 'ALERTA',
         source,
         sourceCol,

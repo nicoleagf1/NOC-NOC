@@ -387,7 +387,7 @@ export default function ConfiguracionPage() {
                           {user.roleName}
                         </Badge>
                         {user.isTwoFactorEnabled && (
-                          <Badge variant="outline" className="ml-2 text-[10px] uppercase font-bold tracking-wider border-green-200 text-green-700 bg-green-50">
+                          <Badge variant="success" className="ml-2 text-[10px] uppercase font-bold tracking-wider border-green-200 text-green-700 bg-green-50">
                             2FA
                           </Badge>
                         )}

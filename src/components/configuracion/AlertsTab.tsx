@@ -142,7 +142,7 @@ export function AlertsTab() {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-vepagos-navy">{rule.name}</h3>
-                <Badge variant={rule.severity === 'critical' ? 'destructive' : 'warning'} className="text-[9px] uppercase mt-0.5 px-1 py-0 shadow-none border-0">
+                <Badge variant={rule.severity === 'critical' ? 'danger' : 'warning'} className="text-[9px] uppercase mt-0.5 px-1 py-0 shadow-none border-0">
                   {rule.severity}
                 </Badge>
               </div>

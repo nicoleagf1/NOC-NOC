@@ -3,6 +3,8 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+const DISPLAY_TIME_ZONE = 'America/Caracas';
+
 export async function GET() {
   try {
     const res = await query(`
@@ -20,8 +22,8 @@ export async function GET() {
       else if (row.severity === 'WARNING') { sev = 'ADVERTENCIA'; sevVar = 'warning'; }
 
       const dateObj = new Date(row.triggered_at);
-      const date = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
-      const time = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const date = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', timeZone: DISPLAY_TIME_ZONE }).toUpperCase();
+      const time = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: DISPLAY_TIME_ZONE });
 
       // Calcular duración
       let durationStr = '--:--:--';

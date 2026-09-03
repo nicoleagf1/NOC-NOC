@@ -44,7 +44,6 @@ export default function ServiciosPage() {
   const [historyModalServiceId, setHistoryModalServiceId] = useState<string | null>(null);
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
   const [copiedIncidentId, setCopiedIncidentId] = useState<string | null>(null);
   const [configModalService, setConfigModalService] = useState<any | null>(null);
   const [configInterval, setConfigInterval] = useState(60);
