@@ -7,5 +7,47 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Host {{ $labels.instance }} caído"
-          description: "El objetivo {{ $labels.instance }} del trabajo {{ $labels.job }} ha estado caído por más de 1 minuto."
+          summary: "Alerta: InstanceDown disparada en {{ $labels.instance }}"
+          description: Servidor o endpoint inalcanzable. Crítico para la disponibilidad.
+      - alert: ServiceUnreachable
+        expr: probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alerta: ServiceUnreachable disparada en {{ $labels.instance }}"
+          description: Fallo en chequeo HTTP de servicio web.
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) *
+          100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alerta: HighCPUUsage disparada en {{ $labels.instance }}"
+          description: Uso de CPU excepcionalmente alto. Posible malware minero o DoS.
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) /
+          node_memory_MemTotal_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alerta: HighMemoryUsage disparada en {{ $labels.instance }}"
+          description: Uso de RAM al límite. Riesgo de OOM (Out of Memory).
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alerta: DiskSpaceLow disparada en {{ $labels.instance }}"
+          description: Espacio de almacenamiento crítico (menos del 10% libre).
+      - alert: NetworkAnomalyRX
+        expr: rate(node_network_receive_bytes_total[5m]) > 125000000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alerta: NetworkAnomalyRX disparada en {{ $labels.instance }}"
+          description: Tráfico de red entrante (RX) inusualmente alto (>1Gbps).

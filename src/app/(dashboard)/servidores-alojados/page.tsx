@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -359,9 +360,9 @@ export default function ServidoresAlojadosPage() {
       </Card>
 
       {/* Modal Mapeo de Servicios (Edit) */}
-      {selectedHost && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <Card className="w-full max-w-2xl bg-white overflow-hidden shadow-2xl flex flex-col max-h-[85vh] rounded-xl border-0">
+      {selectedHost && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-2xl bg-white overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] rounded-2xl flex flex-col max-h-[85vh] border border-gray-100 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50/50">
               <div>
                 <h2 className="text-xl font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide flex items-center">
@@ -433,13 +434,13 @@ export default function ServidoresAlojadosPage() {
               </Button>
             </div>
           </Card>
-        </div>
+        </div>, document.body
       )}
 
       {/* Modal Add Host (Vault) */}
-      {isAddHostModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto pt-20 pb-10">
-          <Card className="w-full max-w-3xl bg-white overflow-hidden shadow-2xl flex flex-col rounded-xl border-0 relative my-auto">
+      {isAddHostModalOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-sm p-4 overflow-y-auto pt-20 pb-10 animate-in fade-in duration-200">
+          <Card className="w-full max-w-3xl bg-white overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] flex flex-col rounded-2xl border border-gray-100 relative my-auto animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50/50">
               <div>
                 <h2 className="text-xl font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide flex items-center">
@@ -591,13 +592,13 @@ export default function ServidoresAlojadosPage() {
               </Button>
             </div>
           </Card>
-        </div>
+        </div>, document.body
       )}
 
       {/* Modal de Vista (Solo Lectura) */}
-      {viewingHost && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <Card className="w-full max-w-md bg-white overflow-hidden shadow-2xl flex flex-col max-h-[90vh] rounded-xl border-0">
+      {viewingHost && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-md bg-white overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] flex flex-col max-h-[90vh] rounded-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50/50">
               <h2 className="text-xl font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide flex items-center">
                 <Server className="w-5 h-5 mr-2 text-vepagos-green" /> 
@@ -720,7 +721,7 @@ export default function ServidoresAlojadosPage() {
               </Button>
             </div>
           </Card>
-        </div>
+        </div>, document.body
       )}
     </div>
   );

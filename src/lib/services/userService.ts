@@ -12,6 +12,7 @@ export interface UserDTO {
   isActive: boolean;
   mustChangePassword?: boolean;
   lastLoginAt?: string;
+  isTwoFactorEnabled?: boolean;
 }
 
 export const userService = {
@@ -20,7 +21,7 @@ export const userService = {
    */
   async getAllUsers(): Promise<UserDTO[]> {
     const res = await query(`
-      SELECT u.id, u.role_id, r.name as role_name, u.username, u.email, u.first_name, u.last_name, u.is_active, u.must_change_password, u.last_login_at
+      SELECT u.id, u.role_id, r.name as role_name, u.username, u.email, u.first_name, u.last_name, u.is_active, u.must_change_password, u.last_login_at, u.is_two_factor_enabled
       FROM users u
       JOIN roles r ON u.role_id = r.id
       ORDER BY u.created_at DESC
@@ -36,7 +37,8 @@ export const userService = {
       lastName: row.last_name,
       isActive: row.is_active,
       mustChangePassword: row.must_change_password,
-      lastLoginAt: row.last_login_at
+      lastLoginAt: row.last_login_at,
+      isTwoFactorEnabled: row.is_two_factor_enabled
     }));
   },
 
@@ -53,6 +55,15 @@ export const userService = {
    */
   async getUserByUsername(username: string) {
     const res = await query('SELECT * FROM users WHERE username = $1 LIMIT 1', [username]);
+    if (res.rows.length === 0) return null;
+    return res.rows[0];
+  },
+
+  /**
+   * Obtiene un usuario por ID (incluyendo secretos 2FA)
+   */
+  async getUserById(id: string) {
+    const res = await query('SELECT * FROM users WHERE id = $1 LIMIT 1', [id]);
     if (res.rows.length === 0) return null;
     return res.rows[0];
   },
@@ -133,6 +144,14 @@ export const userService = {
     if (data.lastName !== undefined) {
       updates.push(`last_name = $${paramIndex++}`);
       values.push(data.lastName);
+    }
+    if (data.isTwoFactorEnabled !== undefined) {
+      updates.push(`is_two_factor_enabled = $${paramIndex++}`);
+      values.push(data.isTwoFactorEnabled);
+      // Si el admin desactiva el 2FA, borramos la semilla. Si lo activa, asumimos que tiene sentido o fue un error (mejor no tocar la semilla)
+      if (!data.isTwoFactorEnabled) {
+        updates.push(`two_factor_secret = NULL`);
+      }
     }
     
     if (updates.length === 0) return true;

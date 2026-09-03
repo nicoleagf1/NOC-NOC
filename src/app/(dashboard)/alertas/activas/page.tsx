@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,10 @@ import {
 // initialAlertsList is replaced by dynamic fetch
 
 export default function AlertasActivasPage() {
+  const router = useRouter();
   const [alertsList, setAlertsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isResolving, setIsResolving] = useState(false);
 
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState("");
@@ -59,6 +62,22 @@ export default function AlertasActivasPage() {
     const int = setInterval(fetchAlerts, 30000);
     return () => clearInterval(int);
   }, []);
+
+  const handleResolveAll = async () => {
+    if (!confirm('¿Estás seguro de que deseas marcar TODAS las alertas activas como leídas/resueltas?')) return;
+    
+    setIsResolving(true);
+    try {
+      const res = await fetch("/api/metrics/alerts/resolve-all", { method: 'PUT' });
+      if (res.ok) {
+        await fetchAlerts();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsResolving(false);
+    }
+  };
 
   // Filtrado lógico
   const filteredAlerts = useMemo(() => {
@@ -127,13 +146,22 @@ export default function AlertasActivasPage() {
         </div>
         
         <div className="flex items-center space-x-3">
-          <Button variant="outline" className="font-bold uppercase tracking-wider text-xs h-[38px] px-4 rounded-[var(--radius-pill)]">
+          <Button 
+            variant="outline" 
+            className="font-bold uppercase tracking-wider text-xs h-[38px] px-4 rounded-[var(--radius-pill)]"
+            onClick={() => router.push('/configuracion?tab=alertas')}
+          >
             <Settings className="w-4 h-4 mr-2" />
             Configurar Reglas
           </Button>
-          <Button variant="primary" className="font-bold uppercase tracking-wider text-xs h-[38px] px-4 rounded-[var(--radius-pill)]">
+          <Button 
+            variant="primary" 
+            className="font-bold uppercase tracking-wider text-xs h-[38px] px-4 rounded-[var(--radius-pill)]"
+            onClick={handleResolveAll}
+            disabled={isResolving}
+          >
             <Check className="w-4 h-4 mr-2" />
-            Marcar todas como leídas
+            {isResolving ? 'Resolviendo...' : 'Marcar todas como leídas'}
           </Button>
         </div>
       </div>

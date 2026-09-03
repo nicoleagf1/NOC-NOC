@@ -42,7 +42,26 @@ export async function POST(request: Request) {
       });
     }
 
-    // Si todo está bien, creamos la sesión
+    const isHttps = request.url.startsWith('https://') || request.headers.get('x-forwarded-proto') === 'https';
+
+    // Manejo de Autenticación de Doble Factor (2FA)
+    if (user.is_two_factor_enabled) {
+      const pendingToken = await authService.sign2faPendingToken(user.id);
+      
+      const response = NextResponse.json({ success: true, requires2FA: true });
+      response.cookies.set({
+        name: 'noc_2fa_pending',
+        value: pendingToken,
+        httpOnly: true,
+        secure: isHttps,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 5 * 60 // 5 minutos
+      });
+      return response;
+    }
+
+    // Si todo está bien y no requiere 2FA, creamos la sesión completa
     const token = await authService.signToken({
       userId: user.id,
       username: user.username,
@@ -50,8 +69,6 @@ export async function POST(request: Request) {
     });
 
     await userService.updateLastLogin(user.id);
-
-    const isHttps = request.url.startsWith('https://') || request.headers.get('x-forwarded-proto') === 'https';
 
     const response = NextResponse.json({ success: true, redirectUrl: '/' });
 

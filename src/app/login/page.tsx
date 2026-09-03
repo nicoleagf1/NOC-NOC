@@ -34,6 +34,10 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
 
+  // States para 2FA
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+
   // States para Recuperar Contraseña
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [forgotUsername, setForgotUsername] = useState("");
@@ -88,7 +92,37 @@ export default function LoginPage() {
       if (data.mustChangePassword) {
         setRequiresPasswordChange(true);
         setUserId(data.userId);
+      } else if (data.requires2FA) {
+        setRequires2FA(true);
       } else if (data.success) {
+        window.location.href = "/";
+      }
+    } catch (err: any) {
+      setError("Error de red. Intenta nuevamente.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/auth/verify-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: twoFactorCode }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Código inválido");
+        return;
+      }
+
+      if (data.success) {
         window.location.href = "/";
       }
     } catch (err: any) {
@@ -245,7 +279,9 @@ export default function LoginPage() {
             </h2>
             <div className="w-16 h-1 bg-[#00CE7C] mt-4 mb-4 rounded-full"></div>
             <p className="text-[16px] text-[#001F60] font-medium opacity-80">
-              {isForgotPassword
+              {requires2FA
+                ? "Ingresa el código de 6 dígitos de tu aplicación autenticadora."
+                : isForgotPassword
                 ? "Ingresa tu usuario o correo para recibir las instrucciones."
                 : !requiresPasswordChange 
                   ? "Ingresa tus credenciales para acceder a la plataforma NOC-NOC."
@@ -261,7 +297,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {!isForgotPassword && !requiresPasswordChange ? (
+            {!isForgotPassword && !requiresPasswordChange && !requires2FA ? (
               // PASO 1: LOGIN NORMAL
               <form className="space-y-5 animate-fade-in" onSubmit={handleLogin}>
                 {/* Campo Usuario */}
@@ -354,6 +390,45 @@ export default function LoginPage() {
                   <span className="text-[13px] font-barlow-condensed font-bold text-[#001F60] uppercase tracking-wider">
                     ACCESO SEGURO
                   </span>
+                </div>
+              </form>
+            ) : requires2FA ? (
+              // PASO 1.5: 2FA
+              <form className="space-y-5 animate-fade-in" onSubmit={handleVerify2FA}>
+                <div className="flex flex-col space-y-2">
+                  <label className="text-[14px] font-barlow-condensed font-bold text-[#001F60] uppercase tracking-wide">
+                    CÓDIGO DE AUTENTICACIÓN
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Ej. 123456"
+                    className="w-full h-[52px] px-4 bg-white border-[1.5px] border-[#E5E9F2] rounded-[10px] text-[24px] text-center tracking-[0.5em] text-[#001F60] placeholder:text-[#6E7B99] placeholder:tracking-normal focus:outline-none focus:border-[#00CE7C] focus:ring-[3px] focus:ring-[#00CE7C]/10 transition-all duration-200"
+                  />
+                </div>
+                
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isLoading || twoFactorCode.length !== 6}
+                    className="w-full h-[56px] bg-[#00CE7C] hover:bg-[#00B36C] text-[#001F60] rounded-[999px] font-barlow-condensed font-bold text-[18px] uppercase tracking-wider transition-colors duration-200 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed group"
+                  >
+                    {isLoading ? "VERIFICANDO..." : "VERIFICAR CÓDIGO"}
+                    {!isLoading && <span className="ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200">→</span>}
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-center pt-4">
+                  <button 
+                    type="button" 
+                    onClick={() => { setRequires2FA(false); setTwoFactorCode(""); setError(null); }}
+                    className="text-[14px] font-barlow-condensed font-bold text-[#001F60] hover:text-[#00CE7C] transition-colors tracking-wide uppercase underline"
+                  >
+                    VOLVER
+                  </button>
                 </div>
               </form>
             ) : isForgotPassword ? (

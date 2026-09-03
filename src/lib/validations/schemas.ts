@@ -36,7 +36,8 @@ export const updateUserSchema = z.object({
   username: z.string().min(3).optional(),
   email: z.string().email().optional(),
   firstName: z.string().min(1).optional(),
-  lastName: z.string().min(1).optional()
+  lastName: z.string().min(1).optional(),
+  isTwoFactorEnabled: z.boolean().optional()
 });
 
 export const createConnectionSchema = z.object({

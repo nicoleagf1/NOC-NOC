@@ -9,6 +9,7 @@ const publicRoutes = [
   '/api/auth/change-password', 
   '/api/auth/recover',
   '/api/auth/reset-password',
+  '/api/auth/verify-2fa',
   '/reset-password',
   '/api/webhooks/uptime-kuma',
   '/api/webhooks/prometheus',

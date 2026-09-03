@@ -18,7 +18,7 @@ export async function GET() {
     }
 
     const userRes = await query(`
-      SELECT u.id, u.username, u.email, u.first_name, u.last_name, r.name as role_name 
+      SELECT u.id, u.username, u.email, u.first_name, u.last_name, r.name as role_name, u.is_two_factor_enabled 
       FROM users u 
       JOIN roles r ON u.role_id = r.id 
       WHERE u.id = $1
@@ -37,7 +37,8 @@ export async function GET() {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        roleName: user.role_name
+        roleName: user.role_name,
+        isTwoFactorEnabled: user.is_two_factor_enabled
       }
     });
   } catch (error) {

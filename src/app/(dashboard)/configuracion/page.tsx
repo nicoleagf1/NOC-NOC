@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,19 @@ import {
 import { ConnectionDTO } from "@/lib/types/connection";
 import { HostsTab } from "@/components/configuracion/HostsTab";
 import { ServicesTab } from "@/components/configuracion/ServicesTab";
+import { AlertsTab } from "@/components/configuracion/AlertsTab";
 export default function ConfiguracionPage() {
   const [activeTab, setActiveTab] = useState("integraciones");
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab) {
+        setActiveTab(tab);
+      }
+    }
+  }, []);
   
   // =====================
   // STATE: INTEGRACIONES
@@ -374,6 +386,11 @@ export default function ConfiguracionPage() {
                         <Badge variant={user.roleName === 'ADMIN' ? 'default' : 'info'} className="text-[10px] uppercase font-bold tracking-wider">
                           {user.roleName}
                         </Badge>
+                        {user.isTwoFactorEnabled && (
+                          <Badge variant="outline" className="ml-2 text-[10px] uppercase font-bold tracking-wider border-green-200 text-green-700 bg-green-50">
+                            2FA
+                          </Badge>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-500">
                         {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Nunca'}
@@ -409,10 +426,13 @@ export default function ConfiguracionPage() {
       {/* CONTENIDO SERVICIOS */}
       {activeTab === "servicios" && <ServicesTab />}
 
+      {/* CONTENIDO ALERTAS */}
+      {activeTab === "alertas" && <AlertsTab />}
+
       {/* MODAL INTEGRACIONES */}
-      {isModalOpen && editingConnection && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-md bg-white overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      {isModalOpen && editingConnection && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-md bg-white overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] rounded-2xl border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide">
                 {editingConnection.id ? 'Editar Integración' : 'Nueva Integración'}
@@ -566,13 +586,13 @@ export default function ConfiguracionPage() {
               </div>
             </div>
           </Card>
-        </div>
+        </div>, document.body
       )}
 
       {/* MODAL USUARIOS */}
-      {isUserModalOpen && editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-md bg-white overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      {isUserModalOpen && editingUser && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-md bg-white overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] rounded-2xl border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide">
                 {editingUser.id ? 'Editar Usuario' : 'Nuevo Usuario'}
@@ -647,6 +667,32 @@ export default function ConfiguracionPage() {
                   </span>
                 </div>
               )}
+
+              {editingUser.id && (
+                <div className="pt-4 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-vepagos-navy flex items-center">
+                        <ShieldCheck className="w-4 h-4 mr-2 text-vepagos-green" />
+                        Autenticación 2FA
+                      </h4>
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Si desactivas esto, el operador perderá su configuración 2FA y podrá entrar solo con contraseña. No puedes activarlo manual; el operador debe configurarlo desde su perfil.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={editingUser.isTwoFactorEnabled || false} 
+                        onChange={e => setEditingUser({...editingUser, isTwoFactorEnabled: e.target.checked})}
+                        disabled={editingUser.isTwoFactorEnabled === false} // Solo se permite desactivar
+                      />
+                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-vepagos-green"></div>
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-2">
@@ -659,7 +705,7 @@ export default function ConfiguracionPage() {
               </Button>
             </div>
           </Card>
-        </div>
+        </div>, document.body
       )}
     </div>
   );

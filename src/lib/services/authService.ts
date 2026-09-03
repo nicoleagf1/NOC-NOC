@@ -64,6 +64,31 @@ export const authService = {
   },
 
   /**
+   * Genera un JWT temporal para indicar que el 2FA está pendiente
+   */
+  async sign2faPendingToken(userId: string): Promise<string> {
+    const alg = 'HS256';
+    return new SignJWT({ userId, purpose: '2fa_pending' })
+      .setProtectedHeader({ alg })
+      .setIssuedAt()
+      .setExpirationTime('5m') // Válido por 5 minutos
+      .sign(getSecretKey());
+  },
+
+  /**
+   * Verifica el JWT temporal de 2FA
+   */
+  async verify2faPendingToken(token: string): Promise<{ userId: string } | null> {
+    try {
+      const { payload } = await jwtVerify(token, getSecretKey());
+      if (payload.purpose !== '2fa_pending') return null;
+      return payload as unknown as { userId: string };
+    } catch (error) {
+      return null;
+    }
+  },
+
+  /**
    * Genera un JWT stateless para la recuperación de contraseña
    * Utiliza el hash de la contraseña actual como parte del secreto
    * para invalidar el token en cuanto se cambie la contraseña.
