@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,8 @@ import {
   ArrowDown,
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Copy
 } from "lucide-react";
 
 // initialAlertsList is replaced by dynamic fetch
@@ -30,6 +32,11 @@ export default function AlertasActivasPage() {
   const [alertsList, setAlertsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isResolving, setIsResolving] = useState(false);
+
+  // Estados del modal de detalles
+  const [selectedAlert, setSelectedAlert] = useState<any>(null);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [copiedAlertId, setCopiedAlertId] = useState<string | null>(null);
 
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState("");
@@ -77,6 +84,43 @@ export default function AlertasActivasPage() {
     } finally {
       setIsResolving(false);
     }
+  };
+
+  const handleResolveSingle = async (id: string) => {
+    setResolvingId(id);
+    try {
+      const res = await fetch(`/api/metrics/alerts/${id}/resolve`, { method: 'PUT' });
+      if (res.ok) {
+        await fetchAlerts();
+        if (selectedAlert?.id === id) {
+          setSelectedAlert({...selectedAlert, status: 'RESUELTA'});
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
+  const handleViewDetails = (alert: any) => {
+    setSelectedAlert(alert);
+  };
+
+  const handleCopyAlert = (alert: any) => {
+    const isResolved = alert.status === 'RESUELTA';
+    const report = `[ALERTA ${isResolved ? 'RESUELTA' : 'ACTIVA'}]
+Host/Servicio: ${alert.host} (${alert.hostSub})
+Descripción: ${alert.desc}
+Detalle Técnico: ${alert.descSub || 'N/A'}
+Severidad: ${alert.sev}
+Fecha/Hora: ${alert.date} a las ${alert.time}
+Duración: ${alert.duration}
+Fuente: ${alert.source}`;
+    
+    navigator.clipboard.writeText(report);
+    setCopiedAlertId(alert.id);
+    setTimeout(() => setCopiedAlertId(null), 2000);
   };
 
   // Filtrado lógico
@@ -360,12 +404,30 @@ export default function AlertasActivasPage() {
                     </td>
                     <td className="px-6 py-3 text-right">
                       <div className="flex items-center justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-vepagos-navy border border-gray-200">
+                        <button 
+                          onClick={() => handleCopyAlert(alert)}
+                          className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-vepagos-navy border border-transparent hover:border-gray-200 transition-colors"
+                          title="Copiar Reporte"
+                        >
+                          {copiedAlertId === alert.id ? <Check className="w-4 h-4 text-vepagos-green" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                        <button 
+                          onClick={() => handleViewDetails(alert)}
+                          className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-blue-600 border border-transparent hover:border-gray-200 transition-colors"
+                          title="Ver Detalles"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-vepagos-navy border border-gray-200">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
+                        {alert.status === 'ACTIVA' && (
+                          <button 
+                            onClick={() => handleResolveSingle(alert.id)}
+                            disabled={resolvingId === alert.id}
+                            className="p-1 hover:bg-green-100 rounded text-gray-400 hover:text-vepagos-green border border-transparent hover:border-green-200 transition-colors disabled:opacity-50"
+                            title="Marcar como Resuelta"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -435,6 +497,97 @@ export default function AlertasActivasPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Detalles de Alerta */}
+      {selectedAlert && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-lg bg-white overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] rounded-2xl border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center space-x-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selectedAlert.sevVar === 'danger' ? 'bg-red-50 text-red-500' : selectedAlert.sevVar === 'warning' ? 'bg-amber-50 text-amber-500' : 'bg-blue-50 text-blue-500'}`}>
+                  {selectedAlert.sevVar === 'danger' ? <XCircle className="w-5 h-5" /> : selectedAlert.sevVar === 'warning' ? <AlertTriangle className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide">
+                    Detalles de la Alerta
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">ID: {selectedAlert.id}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedAlert(null)} className="text-gray-400 hover:text-gray-600 bg-white p-1.5 rounded-md border border-gray-200">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Estado</label>
+                  <span className={`text-xs font-bold uppercase px-2 py-1 rounded ${selectedAlert.status === 'ACTIVA' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-vepagos-green'}`}>
+                    {selectedAlert.status}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Severidad</label>
+                  <Badge variant={selectedAlert.sevVar as any}>{selectedAlert.sev}</Badge>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Fuente y Host</label>
+                <div className="text-sm font-bold text-vepagos-navy p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase mr-2 ${selectedAlert.sourceCol}`}>{selectedAlert.source}</span>
+                  {selectedAlert.host}
+                  <div className="text-xs text-gray-500 mt-1 font-normal break-all">{selectedAlert.hostSub}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Descripción Técnica</label>
+                <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                  <div className="text-sm font-bold text-vepagos-navy mb-1">{selectedAlert.desc}</div>
+                  <div className="text-xs text-gray-600 font-mono bg-white p-2 border border-gray-200 rounded break-all">{selectedAlert.descSub || 'Sin detalles adicionales'}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Hora de Activación</label>
+                  <div className="text-sm text-vepagos-navy">{selectedAlert.date} a las {selectedAlert.time}</div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tiempo Transcurrido</label>
+                  <div className="text-sm font-mono text-vepagos-navy">{selectedAlert.duration}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 rounded-b-2xl">
+              <Button variant="outline" onClick={() => setSelectedAlert(null)}>
+                Cerrar
+              </Button>
+              <Button 
+                variant="outline" 
+                className="bg-white"
+                onClick={() => handleCopyAlert(selectedAlert)}
+              >
+                {copiedAlertId === selectedAlert.id ? <Check className="w-4 h-4 mr-2 text-vepagos-green" /> : <Copy className="w-4 h-4 mr-2 text-gray-500" />}
+                {copiedAlertId === selectedAlert.id ? '¡Copiado!' : 'Copiar Reporte'}
+              </Button>
+              {selectedAlert.status === 'ACTIVA' && (
+                <Button 
+                  className="bg-vepagos-green text-vepagos-navy hover:bg-[#00b36b] font-bold"
+                  onClick={() => handleResolveSingle(selectedAlert.id)}
+                  disabled={resolvingId === selectedAlert.id}
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  {resolvingId === selectedAlert.id ? 'Resolviendo...' : 'Marcar como Resuelta'}
+                </Button>
+              )}
+            </div>
+          </Card>
+        </div>, document.body
+      )}
     </div>
   );
 }

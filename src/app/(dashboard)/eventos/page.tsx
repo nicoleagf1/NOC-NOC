@@ -18,8 +18,12 @@ import {
   Calendar,
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Copy,
+  Check
 } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Button } from "@/components/ui/button";
 
 export default function EventosPage() {
   const [eventosList, setEventosList] = useState<any[]>([]);
@@ -43,6 +47,10 @@ export default function EventosPage() {
     informativos: 0,
     resueltos: 0,
   });
+
+  // Modal y portapapeles
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEvents();
@@ -118,6 +126,19 @@ export default function EventosPage() {
     setFilterSource("TODAS");
     setFilterSev("TODAS");
     setCurrentPage(1);
+  };
+
+  const handleCopyEvent = (evt: any) => {
+    const report = `[EVENTO ${evt.sev}]
+Tipo: ${evt.type}
+Host/Servicio: ${evt.host}
+Descripción: ${evt.desc}
+Fecha/Hora: ${evt.date} a las ${evt.time}
+Fuente: ${evt.source}`;
+    
+    navigator.clipboard.writeText(report);
+    setCopiedEventId(evt.id);
+    setTimeout(() => setCopiedEventId(null), 2000);
   };
 
   return (
@@ -318,11 +339,19 @@ export default function EventosPage() {
                   </td>
                   <td className="px-6 py-3 text-right">
                     <div className="flex items-center justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-vepagos-navy border border-gray-200">
-                        <Eye className="w-4 h-4" />
+                      <button 
+                        onClick={() => handleCopyEvent(evt)}
+                        className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-vepagos-navy border border-transparent hover:border-gray-200 transition-colors"
+                        title="Copiar Evento"
+                      >
+                        {copiedEventId === evt.id ? <Check className="w-4 h-4 text-vepagos-green" /> : <Copy className="w-4 h-4" />}
                       </button>
-                      <button className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-vepagos-navy border border-gray-200">
-                        <MoreVertical className="w-4 h-4" />
+                      <button 
+                        onClick={() => setSelectedEvent(evt)}
+                        className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-blue-600 border border-transparent hover:border-gray-200 transition-colors"
+                        title="Ver Detalles"
+                      >
+                        <Eye className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -388,6 +417,79 @@ export default function EventosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de Detalles de Evento */}
+      {selectedEvent && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-lg bg-white overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] rounded-2xl border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center space-x-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selectedEvent.sevVar === 'danger' ? 'bg-red-50 text-red-500' : selectedEvent.sevVar === 'warning' ? 'bg-amber-50 text-amber-500' : selectedEvent.sevVar === 'success' ? 'bg-green-50 text-vepagos-green' : 'bg-blue-50 text-blue-500'}`}>
+                  {selectedEvent.sevVar === 'danger' ? <XCircle className="w-5 h-5" /> : selectedEvent.sevVar === 'warning' ? <AlertTriangle className="w-5 h-5" /> : selectedEvent.sevVar === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide">
+                    Detalles del Evento
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">ID: {selectedEvent.id}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedEvent(null)} className="text-gray-400 hover:text-gray-600 bg-white p-1.5 rounded-md border border-gray-200">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tipo</label>
+                  <span className="text-xs font-bold uppercase px-2 py-1 rounded bg-gray-100 text-gray-600">
+                    {selectedEvent.type}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Severidad</label>
+                  <Badge variant={selectedEvent.sevVar as any}>{selectedEvent.sev}</Badge>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Fuente y Host</label>
+                <div className="text-sm font-bold text-vepagos-navy p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase mr-2 ${selectedEvent.sourceCol}`}>{selectedEvent.source}</span>
+                  {selectedEvent.host}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Descripción Técnica</label>
+                <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                  <div className="text-sm font-bold text-vepagos-navy mb-1">{selectedEvent.desc}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Hora de Registro</label>
+                <div className="text-sm text-vepagos-navy">{selectedEvent.date} a las {selectedEvent.time}</div>
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 rounded-b-2xl">
+              <Button variant="outline" onClick={() => setSelectedEvent(null)}>
+                Cerrar
+              </Button>
+              <Button 
+                variant="outline" 
+                className="bg-white"
+                onClick={() => handleCopyEvent(selectedEvent)}
+              >
+                {copiedEventId === selectedEvent.id ? <Check className="w-4 h-4 mr-2 text-vepagos-green" /> : <Copy className="w-4 h-4 mr-2 text-gray-500" />}
+                {copiedEventId === selectedEvent.id ? '¡Copiado!' : 'Copiar Reporte'}
+              </Button>
+            </div>
+          </Card>
+        </div>, document.body
+      )}
     </div>
   );
 }

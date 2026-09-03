@@ -26,7 +26,9 @@ import {
   ChevronDown,
   Loader2,
   PauseCircle,
-  History
+  History,
+  Copy,
+  Check
 } from "lucide-react";
 
 export default function ServiciosPage() {
@@ -42,6 +44,8 @@ export default function ServiciosPage() {
   const [historyModalServiceId, setHistoryModalServiceId] = useState<string | null>(null);
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [copiedIncidentId, setCopiedIncidentId] = useState<string | null>(null);
   const [configModalService, setConfigModalService] = useState<any | null>(null);
   const [configInterval, setConfigInterval] = useState(60);
   const [configRetries, setConfigRetries] = useState(1);
@@ -117,6 +121,26 @@ export default function ServiciosPage() {
     } finally {
       setHistoryLoading(false);
     }
+  };
+
+  const handleCopyReport = (incident: any, serviceName: string) => {
+    const isResolved = incident.status === 'RESUELTA';
+    const report = `[INCIDENTE ${isResolved ? 'RESUELTO' : 'ACTIVO'}]
+Servicio: ${serviceName}
+Tipo: ${incident.incident_type}
+Detalle: ${incident.summary}
+Inicio: ${new Date(incident.triggered_at).toLocaleString()}
+${isResolved ? `Duración: ${Math.floor(incident.duration_seconds / 60)} min ${incident.duration_seconds % 60} seg` : 'Estado: Aún en curso'}`;
+    
+    navigator.clipboard.writeText(report);
+    setCopiedIncidentId(incident.incident_id || incident.triggered_at);
+    setTimeout(() => setCopiedIncidentId(null), 2000);
+  };
+
+  const handlePostMortem = (serviceId: string) => {
+    // Cierra el historial y abre la telemetría (modo post-mortem visual)
+    setHistoryModalServiceId(null);
+    setSelectedServiceId(serviceId);
   };
 
   const openConfigModal = (service: any) => {
@@ -583,9 +607,25 @@ export default function ServiciosPage() {
                           <span className={`text-xs font-bold px-2 py-1 rounded-sm uppercase ${incident.status === 'RESUELTA' ? 'bg-green-100 text-vepagos-green' : 'bg-red-100 text-red-500'}`}>
                             {incident.status}
                           </span>
-                          <span className="text-xs font-mono text-gray-400">
-                            {new Date(incident.triggered_at).toLocaleString()}
-                          </span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs font-mono text-gray-400 mr-2">
+                              {new Date(incident.triggered_at).toLocaleString()}
+                            </span>
+                            <button 
+                              onClick={() => handleCopyReport(incident, services.find(s => s.id === historyModalServiceId)?.name || 'Servicio')}
+                              className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-vepagos-navy transition-colors"
+                              title="Copiar Reporte al Portapapeles"
+                            >
+                              {(copiedIncidentId === incident.incident_id || copiedIncidentId === incident.triggered_at) ? <Check className="w-3.5 h-3.5 text-vepagos-green" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                            <button 
+                              onClick={() => handlePostMortem(historyModalServiceId!)}
+                              className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-vepagos-green transition-colors"
+                              title="Análisis Post-Mortem (Ver Telemetría)"
+                            >
+                              <Activity className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                         <p className="text-sm font-bold text-vepagos-navy mb-1">{incident.incident_type}</p>
                         <p className="text-xs text-gray-500">{incident.summary}</p>
