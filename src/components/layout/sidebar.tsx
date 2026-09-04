@@ -18,7 +18,8 @@ import {
   Settings,
   ChevronLeft,
   Router,
-  Cloud
+  Cloud,
+  Wrench
 } from "lucide-react";
 
 const navItems = [
@@ -48,6 +49,12 @@ const navItems = [
     title: "CONFIGURACIÓN",
     items: [
       { name: "GENERAL", href: "/configuracion", icon: Settings },
+    ],
+  },
+  {
+    title: "OPERACIONES",
+    items: [
+      { name: "UTILIDADES", href: "/utilidades", icon: Wrench },
     ],
   },
 ];
