@@ -180,7 +180,7 @@ export default function UtilidadesPage() {
             <Card key={u.id} className="flex flex-col h-full bg-white border border-gray-100 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.1)] rounded-[var(--radius-card)] overflow-hidden group hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] transition-all">
               <div className="p-5 border-b border-gray-50 flex-1">
                 <div className="flex items-start justify-between mb-3">
-                  <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 font-bold px-2 py-0.5 rounded-sm flex items-center">
+                  <Badge variant="default" className="bg-gray-50 text-gray-600 border-gray-200 font-bold px-2 py-0.5 rounded-sm flex items-center">
                     {getOsIcon(u.os_type)}
                     {u.os_type.toUpperCase()}
                   </Badge>
