@@ -1,17 +1,36 @@
 "use client";
 
-import { UtilitiesView } from "@/components/noc/UtilitiesView";
+import { useState, useEffect, useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Wrench,
+  Search,
+  Plus,
+  Terminal,
+  Monitor,
+  Apple,
+  Copy,
+  Check,
+  XCircle,
+  Filter,
+  Trash2,
+  Edit2,
+  Loader2
+} from "lucide-react";
+import { createPortal } from "react-dom";
 
-export default function UtilidadesPage() {
-<<<<<<< HEAD
+export function UtilitiesView({ isReadOnly = false }: { isReadOnly?: boolean }) {
   const [utilities, setUtilities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterOs, setFilterOs] = useState("TODOS");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Modal de añadir
+  // Modal de añadir/editar
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newUtil, setNewUtil] = useState({
     title: "",
@@ -61,14 +80,16 @@ export default function UtilidadesPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/utilities", {
-        method: "POST",
+      const method = isEditMode ? "PUT" : "POST";
+      const url = isEditMode ? `/api/utilities/${editingId}` : "/api/utilities";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newUtil)
       });
       if (res.ok) {
-        setIsAddModalOpen(false);
-        setNewUtil({ title: "", description: "", os_type: "Linux", command: "", usage_instructions: "" });
+        closeModal();
         fetchUtilities();
       } else {
         alert("Error al guardar la utilidad");
@@ -78,6 +99,13 @@ export default function UtilidadesPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const closeModal = () => {
+    setIsAddModalOpen(false);
+    setIsEditMode(false);
+    setEditingId(null);
+    setNewUtil({ title: "", description: "", os_type: "Linux", command: "", usage_instructions: "" });
   };
 
   const filteredUtilities = useMemo(() => {
@@ -111,13 +139,20 @@ export default function UtilidadesPage() {
           </p>
         </div>
         
-        <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-vepagos-green text-vepagos-navy hover:bg-[#00b36b] px-4 py-2 rounded-[var(--radius-pill)] text-sm font-bold transition-colors flex items-center shadow-lg shadow-vepagos-green/20"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Añadir Utilidad
-        </button>
+        {!isReadOnly && (
+          <button 
+            onClick={() => {
+              setIsEditMode(false);
+              setEditingId(null);
+              setNewUtil({ title: "", description: "", os_type: "Linux", command: "", usage_instructions: "" });
+              setIsAddModalOpen(true);
+            }}
+            className="bg-vepagos-green text-vepagos-navy hover:bg-[#00b36b] px-4 py-2 rounded-[var(--radius-pill)] text-sm font-bold transition-colors flex items-center shadow-lg shadow-vepagos-green/20"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Añadir Utilidad
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -164,17 +199,39 @@ export default function UtilidadesPage() {
             <Card key={u.id} className="flex flex-col h-full bg-white border border-gray-100 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.1)] rounded-[var(--radius-card)] overflow-hidden group hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] transition-all">
               <div className="p-5 border-b border-gray-50 flex-1">
                 <div className="flex items-start justify-between mb-3">
-                  <Badge variant="default" className="bg-gray-50 text-gray-600 border-gray-200 font-bold px-2 py-0.5 rounded-sm flex items-center">
+                  <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 font-bold px-2 py-0.5 rounded-sm flex items-center">
                     {getOsIcon(u.os_type)}
                     {u.os_type.toUpperCase()}
                   </Badge>
-                  <button 
-                    onClick={() => handleDelete(u.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1"
-                    title="Eliminar utilidad"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!isReadOnly && (
+                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button 
+                        onClick={() => {
+                          setIsEditMode(true);
+                          setEditingId(u.id);
+                          setNewUtil({
+                            title: u.title,
+                            description: u.description,
+                            os_type: u.os_type,
+                            command: u.command,
+                            usage_instructions: u.usage_instructions || ""
+                          });
+                          setIsAddModalOpen(true);
+                        }}
+                        className="text-gray-300 hover:text-blue-500 p-1"
+                        title="Editar utilidad"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(u.id)}
+                        className="text-gray-300 hover:text-red-500 p-1"
+                        title="Eliminar utilidad"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <h3 className="text-sm font-bold text-vepagos-navy mb-2">{u.title}</h3>
                 <p className="text-xs text-gray-500 line-clamp-2">{u.description}</p>
@@ -216,10 +273,10 @@ export default function UtilidadesPage() {
             <form onSubmit={handleAddUtility}>
               <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
                 <h2 className="text-lg font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide flex items-center">
-                  <Plus className="w-5 h-5 mr-2 text-vepagos-green" />
-                  Nueva Utilidad
+                  {isEditMode ? <Edit2 className="w-5 h-5 mr-2 text-vepagos-green" /> : <Plus className="w-5 h-5 mr-2 text-vepagos-green" />}
+                  {isEditMode ? 'Editar Utilidad' : 'Nueva Utilidad'}
                 </h2>
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <button type="button" onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
@@ -254,12 +311,12 @@ export default function UtilidadesPage() {
               </div>
 
               <div className="p-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 border border-gray-200 rounded text-xs font-bold text-gray-600 hover:bg-gray-100">
+                <button type="button" onClick={closeModal} className="px-4 py-2 border border-gray-200 rounded text-xs font-bold text-gray-600 hover:bg-gray-100">
                   Cancelar
                 </button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-vepagos-green text-vepagos-navy rounded text-xs font-bold hover:bg-[#00b36b] flex items-center">
-                  {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
-                  Guardar Comando
+                  {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : isEditMode ? <Check className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                  {isEditMode ? 'Actualizar Comando' : 'Guardar Comando'}
                 </button>
               </div>
             </form>
@@ -268,7 +325,4 @@ export default function UtilidadesPage() {
       )}
     </div>
   );
-=======
-  return <UtilitiesView />;
->>>>>>> 37de494f89a1f4830a710decd4a522e7133f4856
 }

@@ -15,7 +15,8 @@ const publicRoutes = [
   '/api/webhooks/prometheus',
   '/api/discovery/prometheus',
   '/install-windows-exporter.ps1',
-  '/install-node-exporter.sh'
+  '/install-node-exporter.sh',
+  '/utilidades-mini'
 ];
 
 export async function middleware(request: NextRequest) {
@@ -35,6 +36,14 @@ export async function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get('noc_session')?.value;
 
   if (!sessionCookie) {
+    // Permiso público de solo lectura para la API de utilidades y configuración pública
+    if (
+      (path === '/api/utilities' || path === '/api/settings/public-utilities') && 
+      request.method === 'GET'
+    ) {
+      return NextResponse.next();
+    }
+
     // Si es una ruta de la API y no tiene sesión, devuelve 401
     if (path.startsWith('/api/')) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });

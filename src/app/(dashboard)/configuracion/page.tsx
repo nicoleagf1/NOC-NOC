@@ -27,6 +27,7 @@ import { ConnectionDTO } from "@/lib/types/connection";
 import { HostsTab } from "@/components/configuracion/HostsTab";
 import { ServicesTab } from "@/components/configuracion/ServicesTab";
 import { AlertsTab } from "@/components/configuracion/AlertsTab";
+import { SystemTab } from "@/components/configuracion/SystemTab";
 export default function ConfiguracionPage() {
   const [activeTab, setActiveTab] = useState("integraciones");
 
@@ -428,6 +429,9 @@ export default function ConfiguracionPage() {
 
       {/* CONTENIDO ALERTAS */}
       {activeTab === "alertas" && <AlertsTab />}
+
+      {/* CONTENIDO SISTEMA */}
+      {activeTab === "sistema" && <SystemTab />}
 
       {/* MODAL INTEGRACIONES */}
       {isModalOpen && editingConnection && typeof document !== 'undefined' && createPortal(
