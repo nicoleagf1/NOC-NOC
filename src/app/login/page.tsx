@@ -8,6 +8,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [publicUtilitiesEnabled, setPublicUtilitiesEnabled] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -19,6 +20,12 @@ export default function LoginPage() {
         setError(`Error de sesión: Token inválido (${errorParam}). Verifica la configuración de APP_SECRET en el servidor.`);
       }
     }
+
+    // Check if public utilities are enabled
+    fetch("/api/settings/public-utilities")
+      .then(res => res.json())
+      .then(data => setPublicUtilitiesEnabled(data.enabled))
+      .catch(() => {});
   }, []);
 
   // States para Formulario de Login
@@ -26,6 +33,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+
 
   // States para Cambio Obligatorio de Clave
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
@@ -383,6 +391,21 @@ export default function LoginPage() {
                     {!isLoading && <span className="ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200">→</span>}
                   </button>
                 </div>
+
+                {publicUtilitiesEnabled && (
+                  <div className="flex items-center justify-center pt-2">
+                    <button
+                      type="button"
+                      onClick={() => router.push('/utilidades-mini')}
+                      className="flex items-center space-x-2 cursor-pointer group bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-100 hover:border-gray-300 transition-colors w-full justify-center"
+                    >
+                      <span className="text-[13px] font-barlow-condensed font-bold text-[#001F60] group-hover:text-[#00CE7C] transition-colors tracking-wide uppercase">
+                        PORTAL DE UTILIDADES (MODO PÚBLICO)
+                      </span>
+                      <span className="text-[#00CE7C] opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 text-sm">→</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Indicador de Acceso Seguro */}
                 <div className="flex items-center justify-center pt-6 space-x-2">
