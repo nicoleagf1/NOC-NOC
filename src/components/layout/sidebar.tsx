@@ -1,9 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { createPortal } from "react-dom";
 import {
   LayoutDashboard,
   Server,
@@ -62,6 +63,25 @@ const navItems = [
 export function Sidebar({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggle: () => void }) {
   const pathname = usePathname();
   const [activeAlertsCount, setActiveAlertsCount] = useState(0);
+  const [tooltip, setTooltip] = useState<{ text: string; top: number } | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showTooltip = useCallback((text: string, top: number) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setTooltip({ text, top });
+  }, []);
+
+  const hideTooltip = useCallback(() => {
+    timeoutRef.current = setTimeout(() => setTooltip(null), 100);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
+  }, []);
+
+  useEffect(() => {
+    if (!isCollapsed) setTooltip(null);
+  }, [isCollapsed]);
 
   useEffect(() => {
     const fetchAlertsCount = async () => {
@@ -110,7 +130,13 @@ export function Sidebar({ isCollapsed, onToggle }: { isCollapsed: boolean, onTog
                   <li key={itemIdx}>
                     <Link
                       href={item.href}
-                      title={item.name}
+                      onMouseEnter={(e) => {
+                        if (isCollapsed) {
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          showTooltip(item.name, rect.top + rect.height / 2);
+                        }
+                      }}
+                      onMouseLeave={hideTooltip}
                       className={`flex items-center justify-between py-2.5 rounded-lg text-sm font-medium transition-colors uppercase font-barlow-condensed tracking-wide ${isCollapsed ? 'px-0 justify-center' : 'px-3'
                         } ${isActive
                           ? `bg-vepagos-green/10 text-vepagos-green-deep border-vepagos-green ${isCollapsed ? 'border-l-0' : 'border-l-4'}`
@@ -139,13 +165,30 @@ export function Sidebar({ isCollapsed, onToggle }: { isCollapsed: boolean, onTog
       <div className="p-4 border-t border-gray-100 flex justify-center">
         <button
           onClick={onToggle}
+          onMouseEnter={(e) => {
+            if (isCollapsed) {
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              showTooltip("Expandir Menú", rect.top + rect.height / 2);
+            }
+          }}
+          onMouseLeave={hideTooltip}
           className="flex items-center text-sm font-bold text-gray-500 hover:text-vepagos-navy transition-colors uppercase font-barlow-condensed tracking-wide w-full justify-center py-2"
-          title={isCollapsed ? "Expandir Menú" : "Colapsar Menú"}
         >
           <ChevronLeft className={`w-5 h-5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : 'mr-2'}`} />
           {!isCollapsed && <span>Colapsar Menú</span>}
         </button>
       </div>
+
+      {tooltip && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed z-[9999] px-3 py-1.5 bg-vepagos-navy text-white text-xs font-medium rounded-md whitespace-nowrap pointer-events-none shadow-lg"
+          style={{ top: tooltip.top, left: 88, transform: "translateY(-50%)" }}
+        >
+          {tooltip.text}
+          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-vepagos-navy"></div>
+        </div>,
+        document.body
+      )}
     </aside>
   );
 }
