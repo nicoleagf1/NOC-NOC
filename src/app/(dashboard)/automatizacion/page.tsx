@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,11 @@ import {
   ArrowRight,
   Code2,
   Copy,
-  Check
+  Check,
+  HelpCircle,
+  X,
+  BookOpen,
+  Info
 } from "lucide-react";
 
 interface N8nStatus {
@@ -59,6 +64,10 @@ export default function AutomatizacionPage() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simResult, setSimResult] = useState<any | null>(null);
   const [copiedPayload, setCopiedPayload] = useState(false);
+
+  // Estado del Modal de Ayuda Webhook
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
 
   // Escenarios predefinidos de simulación
   const SCENARIOS: Record<string, { severity: string; trigger: string; detail: string; defaultTarget: string; eventType: 'firing' | 'resolved' }> = {
@@ -274,6 +283,15 @@ export default function AutomatizacionPage() {
         </div>
 
         <div className="flex items-center space-x-3">
+          <button 
+            onClick={() => setIsHelpModalOpen(true)}
+            className="flex items-center border border-indigo-200 bg-indigo-50/80 text-indigo-700 hover:bg-indigo-100/90 px-4 py-2 h-[34px] rounded-full text-xs font-bold transition-colors shadow-sm"
+            title="Aprende cómo configurar el nodo Webhook en n8n paso a paso"
+          >
+            <HelpCircle className="w-3.5 h-3.5 mr-2 text-indigo-600" />
+            GUÍA WEBHOOK N8N
+          </button>
+
           {status.url && (
             <a 
               href={status.url} 
@@ -613,6 +631,233 @@ export default function AutomatizacionPage() {
           </div>
         )}
       </Card>
+
+      {/* ========================================================================= */}
+      {/* MODAL: GUÍA PASO A PASO PARA CREAR EL WEBHOOK EN N8N                     */}
+      {/* ========================================================================= */}
+      {isHelpModalOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-3xl bg-white shadow-2xl rounded-2xl border-0 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header del Modal */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 text-[#EA4B71] flex items-center justify-center border border-rose-100">
+                  <Workflow className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-vepagos-navy uppercase tracking-wide">
+                    Cómo Configurar el Webhook en n8n
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Guía de integración para recibir incidentes de NOC-NOC y activar notificaciones o runbooks.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsHelpModalOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Contenido Scrollable */}
+            <div className="p-6 overflow-y-auto space-y-6 text-xs text-gray-600">
+              {/* URL Destino Dinámica */}
+              <div className="p-4 bg-gradient-to-r from-rose-50/70 to-indigo-50/70 border border-rose-100/80 rounded-xl">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    URL Objetivo para tu Nodo Webhook
+                  </span>
+                  <Badge variant="default" className="text-[9px] bg-[#EA4B71] text-white">
+                    MÉTODO POST
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-2 font-mono text-[11px] text-vepagos-navy">
+                  <span className="truncate mr-2">
+                    {status.url ? `${status.url.replace(/\/+$/, '')}/webhook/noc-noc-incident` : 'http://<tu-instancia-n8n>:5678/webhook/noc-noc-incident'}
+                  </span>
+                  <button
+                    onClick={() => {
+                      const urlToCopy = status.url ? `${status.url.replace(/\/+$/, '')}/webhook/noc-noc-incident` : 'http://localhost:5678/webhook/noc-noc-incident';
+                      navigator.clipboard.writeText(urlToCopy);
+                      setCopiedWebhookUrl(true);
+                      setTimeout(() => setCopiedWebhookUrl(false), 2000);
+                    }}
+                    className="flex items-center text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded flex-shrink-0 transition-colors"
+                  >
+                    {copiedWebhookUrl ? <Check className="w-3 h-3 mr-1 text-vepagos-green" /> : <Copy className="w-3 h-3 mr-1" />}
+                    {copiedWebhookUrl ? '¡Copiado!' : 'Copiar URL'}
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5">
+                  NOC-NOC envía automáticamente todas las alertas a la ruta <code className="text-gray-600">/webhook/noc-noc-incident</code> de tu servidor n8n.
+                </p>
+              </div>
+
+              {/* 4 Pasos Clave */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-vepagos-navy uppercase tracking-wider flex items-center">
+                  <BookOpen className="w-4 h-4 mr-1.5 text-vepagos-green" />
+                  Pasos para Crear el Flujo en n8n
+                </h4>
+
+                {/* Paso 1 */}
+                <div className="flex space-x-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="w-6 h-6 rounded-full bg-vepagos-navy text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
+                    1
+                  </div>
+                  <div>
+                    <div className="font-bold text-vepagos-navy uppercase mb-0.5">Crear un Nuevo Workflow</div>
+                    <p className="text-gray-500 leading-relaxed">
+                      En la consola de tu n8n, haz clic en el botón superior derecho <b>"Add workflow"</b> (o el botón <span className="font-mono bg-white px-1 border rounded">+</span>).
+                    </p>
+                  </div>
+                </div>
+
+                {/* Paso 2 */}
+                <div className="flex space-x-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="w-6 h-6 rounded-full bg-vepagos-navy text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
+                    2
+                  </div>
+                  <div>
+                    <div className="font-bold text-vepagos-navy uppercase mb-0.5">Agregar el Trigger "Webhook"</div>
+                    <p className="text-gray-500 leading-relaxed">
+                      Presiona <b>"Add first step"</b> y busca el nodo <b>"Webhook"</b>. Configúralo con los siguientes parámetros exactos:
+                    </p>
+                    <ul className="mt-2 space-y-1 font-mono text-[11px] bg-white p-2.5 rounded-lg border border-gray-200">
+                      <li>• <b>HTTP Method:</b> <span className="text-[#EA4B71] font-bold">POST</span></li>
+                      <li>• <b>Path:</b> <span className="text-indigo-600 font-bold">noc-noc-incident</span></li>
+                      <li>• <b>Authentication:</b> <span className="text-gray-700 font-bold">None</span> (o Header Auth si configuraste API Key)</li>
+                      <li>• <b>Respond:</b> <span className="text-emerald-600 font-bold">Immediately</span> (Response Code: 200)</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Paso 3 */}
+                <div className="flex space-x-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="w-6 h-6 rounded-full bg-vepagos-navy text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
+                    3
+                  </div>
+                  <div>
+                    <div className="font-bold text-vepagos-navy uppercase mb-0.5">Conectar Nodos de Acción (Telegram / WhatsApp / Email)</div>
+                    <p className="text-gray-500 leading-relaxed">
+                      Conecta la salida del nodo Webhook hacia el servicio que desees. Puedes usar las siguientes expresiones en tus plantillas:
+                    </p>
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-[10px]">
+                      <div className="p-2 bg-white border border-gray-200 rounded">
+                        <span className="text-gray-400 block font-sans">Activo / Host:</span>
+                        <code className="text-vepagos-navy font-bold">{"{{ $json.body.serviceName }}"}</code>
+                      </div>
+                      <div className="p-2 bg-white border border-gray-200 rounded">
+                        <span className="text-gray-400 block font-sans">Severidad:</span>
+                        <code className="text-rose-600 font-bold">{"{{ $json.body.severity }}"}</code>
+                      </div>
+                      <div className="p-2 bg-white border border-gray-200 rounded">
+                        <span className="text-gray-400 block font-sans">Métrica Disparadora:</span>
+                        <code className="text-indigo-600 font-bold">{"{{ $json.body.metricTrigger }}"}</code>
+                      </div>
+                      <div className="p-2 bg-white border border-gray-200 rounded">
+                        <span className="text-gray-400 block font-sans">Estado del Incidente:</span>
+                        <code className="text-emerald-600 font-bold">{"{{ $json.body.eventType }}"}</code> (firing / resolved)
+                      </div>
+                      <div className="p-2 bg-white border border-gray-200 rounded sm:col-span-2">
+                        <span className="text-gray-400 block font-sans">Detalle Técnico:</span>
+                        <code className="text-gray-700 font-bold">{"{{ $json.body.technicalDetail }}"}</code>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Paso 4 */}
+                <div className="flex space-x-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="w-6 h-6 rounded-full bg-vepagos-navy text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
+                    4
+                  </div>
+                  <div>
+                    <div className="font-bold text-vepagos-navy uppercase mb-0.5">Activar el Workflow (Production)</div>
+                    <p className="text-gray-500 leading-relaxed">
+                      Asegúrate de cambiar el interruptor superior del workflow de <b>Inactive</b> a <b className="text-emerald-600">Active</b> en n8n para que escuche en modo de producción permanente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ejemplo Payload JSON */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Ejemplo del JSON que envía NOC-NOC
+                  </span>
+                  <button
+                    onClick={() => handleCopySample({
+                      eventType: "firing",
+                      incidentId: "prom-ServiceUnreachable-192.168.0.1",
+                      serviceId: "prom-ServiceUnreachable-https://192.168.0.1:10443",
+                      serviceName: "https://192.168.0.1:10443",
+                      metricTrigger: "ServiceUnreachable",
+                      severity: "CRITICAL",
+                      technicalDetail: "Fallo en sondeo HTTP de administración de Firewall",
+                      timestamp: new Date().toISOString()
+                    })}
+                    className="flex items-center text-[10px] text-gray-500 hover:text-vepagos-navy font-bold transition-colors"
+                  >
+                    {copiedPayload ? <Check className="w-3 h-3 mr-1 text-vepagos-green" /> : <Copy className="w-3 h-3 mr-1" />}
+                    {copiedPayload ? '¡Copiado!' : 'Copiar JSON'}
+                  </button>
+                </div>
+                <pre className="p-3 bg-gray-900 text-gray-100 rounded-lg text-[10px] font-mono overflow-x-auto border border-gray-800 leading-relaxed">
+{`{
+  "eventType": "firing",           // "firing" (alerta activa) o "resolved" (normalizado)
+  "incidentId": "prom-ServiceUnreachable-192.168.0.1",
+  "serviceId": "prom-ServiceUnreachable-https://192.168.0.1:10443",
+  "serviceName": "https://192.168.0.1:10443",
+  "metricTrigger": "ServiceUnreachable",
+  "severity": "CRITICAL",          // "CRITICAL", "WARNING", "INFO"
+  "technicalDetail": "Fallo en sondeo HTTP de administración de Firewall",
+  "timestamp": "2026-09-09T15:20:00.000Z"
+}`}
+                </pre>
+              </div>
+
+              {/* Tip Pro de Infraestructura */}
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start space-x-2 text-emerald-800">
+                <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-emerald-600" />
+                <p className="text-[11px] leading-relaxed">
+                  <b>Tip Pro para Ingenieros de Infraestructura:</b> Dentro de n8n puedes hacer clic en <i>"Listen for test event"</i> en el nodo Webhook, y luego venir a nuestro <b>Simulador de Incidentes</b> abajo y presionar <i>"Disparar Evento de Prueba"</i>. Así n8n capturará el esquema completo al instante sin escribir código.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer del Modal */}
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsHelpModalOpen(false)}
+                className="text-xs font-bold uppercase"
+              >
+                Cerrar
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setIsHelpModalOpen(false);
+                  setTimeout(() => {
+                    const simSection = document.querySelector('input[placeholder*="srv-prod-db-01"]');
+                    if (simSection) simSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 150);
+                }}
+                className="bg-[#EA4B71] text-white hover:bg-[#d63d60] text-xs font-bold uppercase tracking-wide"
+              >
+                <Terminal className="w-3.5 h-3.5 mr-1.5" />
+                Probar en el Simulador
+              </Button>
+            </div>
+          </Card>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
