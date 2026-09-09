@@ -61,6 +61,7 @@ export default function AutomatizacionPage() {
   // Estados del Simulador de Incidentes
   const [simScenario, setSimScenario] = useState("fw-down");
   const [simTarget, setSimTarget] = useState("https://192.168.0.1:10443");
+  const [simMode, setSimMode] = useState<'test' | 'prod'>('test');
   const [isSimulating, setIsSimulating] = useState(false);
   const [simResult, setSimResult] = useState<any | null>(null);
   const [copiedPayload, setCopiedPayload] = useState(false);
@@ -68,6 +69,7 @@ export default function AutomatizacionPage() {
   // Estado del Modal de Ayuda Webhook
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
+  const [copiedTelegramTpl, setCopiedTelegramTpl] = useState(false);
 
   // Escenarios predefinidos de simulación
   const SCENARIOS: Record<string, { severity: string; trigger: string; detail: string; defaultTarget: string; eventType: 'firing' | 'resolved' }> = {
@@ -154,7 +156,8 @@ export default function AutomatizacionPage() {
           serviceName: simTarget,
           metricTrigger: selected.trigger,
           severity: selected.severity,
-          technicalDetail: selected.detail
+          technicalDetail: selected.detail,
+          isTestWebhook: simMode === 'test'
         })
       });
       const data = await res.json();
@@ -505,6 +508,44 @@ export default function AutomatizacionPage() {
                 </select>
               </div>
 
+              {/* Modo de Webhook: Test o Producción */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Ruta Webhook Destino
+                  </label>
+                  <span className="text-[10px] font-mono font-bold text-indigo-600">
+                    {simMode === 'test' ? 'Para "Listen for test event"' : 'Para workflow "Active"'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setSimMode('test')}
+                    className={`py-1.5 px-2 rounded-md text-[11px] font-bold transition-all text-center ${
+                      simMode === 'test' 
+                        ? 'bg-white text-indigo-700 shadow-sm border border-gray-200' 
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                    title="Usa esto cuando estés dentro del editor de n8n con el botón 'Listen for test event' activo"
+                  >
+                    🧪 /webhook-test/... (Editor)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSimMode('prod')}
+                    className={`py-1.5 px-2 rounded-md text-[11px] font-bold transition-all text-center ${
+                      simMode === 'prod' 
+                        ? 'bg-white text-emerald-700 shadow-sm border border-gray-200' 
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                    title="Usa esto para workflows que ya estén guardados y en estado 'Active'"
+                  >
+                    🚀 /webhook/... (Producción)
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
                   Host / Target Afectado
@@ -525,7 +566,7 @@ export default function AutomatizacionPage() {
                   className="w-full bg-[#EA4B71] text-white hover:bg-[#d63d60] font-bold text-xs uppercase tracking-wide h-9 rounded-md transition-colors"
                 >
                   <Send className={`w-3.5 h-3.5 mr-2 ${isSimulating ? 'animate-spin' : ''}`} />
-                  {isSimulating ? 'Transmitiendo a n8n...' : 'Disparar Evento de Prueba a n8n'}
+                  {isSimulating ? 'Transmitiendo a n8n...' : `Disparar Evento a ${simMode === 'test' ? 'n8n Test' : 'n8n Prod'}`}
                 </Button>
               </div>
             </div>
@@ -552,8 +593,11 @@ export default function AutomatizacionPage() {
             )}
           </div>
 
-          <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] text-gray-400 text-right">
-            Webhook objetivo: <code className="font-mono text-gray-600">{status.url}/webhook/noc-noc-incident</code>
+          <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] text-gray-400 flex items-center justify-between">
+            <span>Webhook objetivo:</span>
+            <code className="font-mono text-gray-600 font-bold">
+              {status?.url ? `${status.url.replace(/\/+$/, '')}/${simMode === 'test' ? 'webhook-test' : 'webhook'}/noc-noc-incident` : ''}
+            </code>
           </div>
         </Card>
       </div>
@@ -739,32 +783,63 @@ export default function AutomatizacionPage() {
                   <div className="w-6 h-6 rounded-full bg-vepagos-navy text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
                     3
                   </div>
-                  <div>
+                  <div className="w-full">
                     <div className="font-bold text-vepagos-navy uppercase mb-0.5">Conectar Nodos de Acción (Telegram / WhatsApp / Email)</div>
                     <p className="text-gray-500 leading-relaxed">
-                      Conecta la salida del nodo Webhook hacia el servicio que desees. Puedes usar las siguientes expresiones en tus plantillas:
+                      Conecta la salida del nodo Webhook hacia tu bot de Telegram o servicio deseado. Puedes acceder a las variables directamente con <code className="text-indigo-600 font-bold">{"{{ $json.campo }}"}</code>:
                     </p>
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-[10px]">
                       <div className="p-2 bg-white border border-gray-200 rounded">
                         <span className="text-gray-400 block font-sans">Activo / Host:</span>
-                        <code className="text-vepagos-navy font-bold">{"{{ $json.body.serviceName }}"}</code>
+                        <code className="text-vepagos-navy font-bold">{"{{ $json.serviceName }}"}</code>
                       </div>
                       <div className="p-2 bg-white border border-gray-200 rounded">
                         <span className="text-gray-400 block font-sans">Severidad:</span>
-                        <code className="text-rose-600 font-bold">{"{{ $json.body.severity }}"}</code>
+                        <code className="text-rose-600 font-bold">{"{{ $json.severity }}"}</code>
                       </div>
                       <div className="p-2 bg-white border border-gray-200 rounded">
                         <span className="text-gray-400 block font-sans">Métrica Disparadora:</span>
-                        <code className="text-indigo-600 font-bold">{"{{ $json.body.metricTrigger }}"}</code>
+                        <code className="text-indigo-600 font-bold">{"{{ $json.metricTrigger }}"}</code>
                       </div>
                       <div className="p-2 bg-white border border-gray-200 rounded">
                         <span className="text-gray-400 block font-sans">Estado del Incidente:</span>
-                        <code className="text-emerald-600 font-bold">{"{{ $json.body.eventType }}"}</code> (firing / resolved)
+                        <code className="text-emerald-600 font-bold">{"{{ $json.eventType }}"}</code> (firing / resolved)
                       </div>
                       <div className="p-2 bg-white border border-gray-200 rounded sm:col-span-2">
                         <span className="text-gray-400 block font-sans">Detalle Técnico:</span>
-                        <code className="text-gray-700 font-bold">{"{{ $json.body.technicalDetail }}"}</code>
+                        <code className="text-gray-700 font-bold">{"{{ $json.technicalDetail }}"}</code>
                       </div>
+                    </div>
+
+                    {/* Plantilla Lista para Telegram */}
+                    <div className="mt-3 p-3 bg-blue-50/60 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wide">
+                          Plantilla Recomendada para el nodo Telegram (Campo "Text")
+                        </span>
+                        <button
+                          onClick={() => {
+                            const tpl = `🚨 *ALERTA NOC-NOC: {{ $json.severity }}*\n📍 *Servicio:* {{ $json.serviceName }}\n⚠️ *Métrica:* {{ $json.metricTrigger }}\n📝 *Detalle:* {{ $json.technicalDetail }}\n🕒 *Fecha:* {{ $json.timestamp }}`;
+                            navigator.clipboard.writeText(tpl);
+                            setCopiedTelegramTpl(true);
+                            setTimeout(() => setCopiedTelegramTpl(false), 2000);
+                          }}
+                          className="flex items-center text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-white px-2 py-0.5 rounded border border-blue-200 transition-colors"
+                        >
+                          {copiedTelegramTpl ? <Check className="w-3 h-3 mr-1 text-vepagos-green" /> : <Copy className="w-3 h-3 mr-1" />}
+                          {copiedTelegramTpl ? '¡Copiado!' : 'Copiar Plantilla'}
+                        </button>
+                      </div>
+                      <pre className="text-[10px] font-mono bg-white p-2 rounded border border-blue-100 text-blue-950 whitespace-pre-wrap leading-relaxed">
+{`🚨 *ALERTA NOC-NOC: {{ $json.severity }}*
+📍 *Servicio:* {{ $json.serviceName }}
+⚠️ *Métrica:* {{ $json.metricTrigger }}
+📝 *Detalle:* {{ $json.technicalDetail }}
+🕒 *Fecha:* {{ $json.timestamp }}`}
+                      </pre>
+                      <p className="text-[9px] text-blue-600 mt-1">
+                        * Evita fusionar variables juntas como <code className="bg-red-50 text-red-600 px-1 rounded">{"{{ $json.metric$json.technicalDetailTrigger }}"}</code>.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -777,9 +852,24 @@ export default function AutomatizacionPage() {
                   <div>
                     <div className="font-bold text-vepagos-navy uppercase mb-0.5">Activar el Workflow (Production)</div>
                     <p className="text-gray-500 leading-relaxed">
-                      Asegúrate de cambiar el interruptor superior del workflow de <b>Inactive</b> a <b className="text-emerald-600">Active</b> en n8n para que escuche en modo de producción permanente.
+                      Asegúrate de cambiar el interruptor superior del workflow de <b>Inactive</b> a <b className="text-emerald-600">Active</b> en n8n para que escuche en modo de producción permanente con la ruta <code className="text-emerald-700 font-mono">/webhook/noc-noc-incident</code>.
                     </p>
                   </div>
+                </div>
+              </div>
+
+              {/* Advertencia Crítica de Infraestructura: Proxy Zero-Trust / Pangolin */}
+              <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl space-y-1.5 text-amber-900">
+                <div className="flex items-center space-x-2 font-bold text-xs text-amber-800 uppercase tracking-wide">
+                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span>Requisito de Infraestructura: Proxy Zero-Trust (Pangolin / Pholidota)</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-amber-800">
+                  Tu servidor n8n está protegido por el proxy Zero-Trust <b>Pangolin (pholidota.vepagos.com)</b>. Para que NOC-NOC (o cualquier servicio externo) pueda entregar webhooks sin ser redirigido al login humano de SSO (HTTP 302), debes configurar en Pangolin una regla de <b>Rutas Públicas (Bypass / Whitelist)</b> para:
+                </p>
+                <div className="font-mono text-[10px] bg-white p-2 rounded border border-amber-200 space-y-0.5 text-amber-950 font-bold">
+                  <div>• <code>/webhook/*</code> (Ruta de producción para workflows activos)</div>
+                  <div>• <code>/webhook-test/*</code> (Ruta de pruebas para "Listen for test event")</div>
                 </div>
               </div>
 
@@ -824,7 +914,7 @@ export default function AutomatizacionPage() {
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start space-x-2 text-emerald-800">
                 <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-emerald-600" />
                 <p className="text-[11px] leading-relaxed">
-                  <b>Tip Pro para Ingenieros de Infraestructura:</b> Dentro de n8n puedes hacer clic en <i>"Listen for test event"</i> en el nodo Webhook, y luego venir a nuestro <b>Simulador de Incidentes</b> abajo y presionar <i>"Disparar Evento de Prueba"</i>. Así n8n capturará el esquema completo al instante sin escribir código.
+                  <b>Tip Pro para Ingenieros:</b> Para capturar el esquema en n8n por primera vez, haz clic en <i>"Listen for test event"</i> en n8n, ven al Simulador de Incidentes de NOC-NOC, selecciona la pestaña <b>🧪 /webhook-test/... (Editor)</b> y presiona <i>"Disparar Evento"</i>.
                 </p>
               </div>
             </div>

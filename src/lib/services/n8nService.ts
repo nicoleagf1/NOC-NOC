@@ -61,7 +61,8 @@ export const n8nService = {
           method: 'GET',
           headers,
           signal: controller.signal,
-          cache: 'no-store'
+          cache: 'no-store',
+          redirect: 'manual'
         });
       } catch (healthErr: any) {
         // Si /healthz falla, intentamos la raíz o /api/v1/workflows
@@ -77,7 +78,8 @@ export const n8nService = {
           method: 'GET',
           headers,
           signal: fallbackController.signal,
-          cache: 'no-store'
+          cache: 'no-store',
+          redirect: 'manual'
         });
         clearTimeout(fallbackTimeout);
       } finally {
@@ -85,6 +87,28 @@ export const n8nService = {
       }
 
       const latencyMs = Date.now() - startTime;
+
+      // Si responde con redirección a un portal SSO (Pangolin, Cloudflare Access, Pomerium, etc.)
+      if (response.status >= 300 && response.status < 400) {
+        const redirectLocation = response.headers.get('location') || '';
+        return {
+          success: false,
+          message: `Instancia detrás de un proxy Zero-Trust / SSO (HTTP ${response.status}). Redirige a: ${redirectLocation}. Configura bypass o reglas públicas en el proxy.`,
+          latencyMs,
+          statusCode: response.status
+        };
+      }
+
+      // Si responde 200 pero devuelve una página HTML de login
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) {
+        return {
+          success: false,
+          message: `El servidor devolvió HTML en vez de n8n. La petición está siendo interceptada por un portal de autenticación o proxy SSO.`,
+          latencyMs,
+          statusCode: response.status
+        };
+      }
 
       if (response.ok || response.status === 200) {
         return {
@@ -192,7 +216,10 @@ export const n8nService = {
   /**
    * Despacha un evento de alerta a n8n de forma asíncrona y tolerante a fallos
    */
-  async dispatchIncidentEvent(payload: N8nIncidentPayload): Promise<{ success: boolean; statusCode?: number; latencyMs?: number; message: string }> {
+  async dispatchIncidentEvent(
+    payload: N8nIncidentPayload, 
+    options?: { isTestWebhook?: boolean }
+  ): Promise<{ success: boolean; statusCode?: number; latencyMs?: number; message: string; targetUrl?: string }> {
     const startTime = Date.now();
     try {
       const conn = await this.getActiveConnection();
@@ -201,9 +228,13 @@ export const n8nService = {
       }
 
       const normalizedUrl = conn.url.replace(/\/+$/, '');
+      const webhookSuffix = options?.isTestWebhook 
+        ? '/webhook-test/noc-noc-incident' 
+        : '/webhook/noc-noc-incident';
+
       const targetUrl = normalizedUrl.includes('/webhook') 
-        ? normalizedUrl 
-        : `${normalizedUrl}/webhook/noc-noc-incident`;
+        ? (options?.isTestWebhook ? normalizedUrl.replace(/\/webhook\/?/, '/webhook-test/') : normalizedUrl)
+        : `${normalizedUrl}${webhookSuffix}`;
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -227,17 +258,43 @@ export const n8nService = {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
-        signal: controller.signal
+        signal: controller.signal,
+        redirect: 'manual'
       });
       clearTimeout(timeoutId);
 
       const latencyMs = Date.now() - startTime;
+
+      // Detección de redirección por Proxy Zero-Trust / SSO (Pangolin, Cloudflare Access, etc.)
+      if (res.status >= 300 && res.status < 400) {
+        const redirectLocation = res.headers.get('location') || '';
+        return {
+          success: false,
+          statusCode: res.status,
+          latencyMs,
+          targetUrl,
+          message: `Bloqueado por Proxy Zero-Trust / SSO (HTTP ${res.status}). Redirigido a: ${redirectLocation}. Debes configurar una excepción pública (Bypass) para '/webhook/*' y '/webhook-test/*' en Pangolin.`
+        };
+      }
+
+      // Detección si devolvió una página HTML en lugar de procesar el webhook
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) {
+        return {
+          success: false,
+          statusCode: res.status,
+          latencyMs,
+          targetUrl,
+          message: `El servidor devolvió una página HTML en vez de aceptar el webhook. La petición fue interceptada por un portal de autenticación SSO.`
+        };
+      }
 
       if (res.ok) {
         return { 
           success: true, 
           statusCode: res.status, 
           latencyMs, 
+          targetUrl,
           message: `Evento entregado exitosamente a n8n (${latencyMs}ms)` 
         };
       }
@@ -246,6 +303,7 @@ export const n8nService = {
         success: false,
         statusCode: res.status,
         latencyMs,
+        targetUrl,
         message: `n8n webhook respondió con código HTTP ${res.status}: ${res.statusText}`
       };
     } catch (err: any) {

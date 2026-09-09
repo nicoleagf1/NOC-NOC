@@ -11,7 +11,8 @@ export async function POST(request: Request) {
       serviceName = 'SRV-PROD-TEST',
       metricTrigger = 'HighCPUUsage',
       severity = 'CRITICAL',
-      technicalDetail = 'Evento de prueba disparado desde el Simulador NOC-NOC'
+      technicalDetail = 'Evento de prueba disparado desde el Simulador NOC-NOC',
+      isTestWebhook = false
     } = body;
 
     const payload = {
@@ -25,13 +26,14 @@ export async function POST(request: Request) {
       timestamp: new Date().toISOString()
     };
 
-    const dispatchResult = await n8nService.dispatchIncidentEvent(payload);
+    const dispatchResult = await n8nService.dispatchIncidentEvent(payload, { isTestWebhook });
 
     return NextResponse.json({
       success: dispatchResult.success,
       message: dispatchResult.message,
       statusCode: dispatchResult.statusCode,
       latencyMs: dispatchResult.latencyMs,
+      targetUrl: dispatchResult.targetUrl,
       payloadSent: payload
     });
   } catch (error: any) {
