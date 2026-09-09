@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { n8nService } from '@/lib/services/n8nService';
 
 export async function POST(request: Request) {
   try {
@@ -27,21 +28,49 @@ export async function POST(request: Request) {
         );
 
         if (checkRes.rows.length === 0) {
-          await query(
+          const insertRes = await query(
             `INSERT INTO alert_incident_history 
               (service_id, service_name, metric_trigger, severity, current_status, technical_detail, triggered_at)
-             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())
+             RETURNING incident_id`,
             [serviceId, instance, alertname, severity, 'ACTIVA', summary]
           );
+
+          // Notificar asíncronamente a n8n
+          n8nService.dispatchIncidentEvent({
+            eventType: 'firing',
+            incidentId: insertRes.rows[0]?.incident_id || serviceId,
+            serviceId,
+            serviceName: instance,
+            metricTrigger: alertname,
+            severity,
+            technicalDetail: summary,
+            timestamp: new Date().toISOString()
+          }).catch(e => console.warn('[n8n notify error]:', e));
         }
       } else if (status === 'resolved') {
         // Marcar como resuelta
-        await query(
+        const updateRes = await query(
           `UPDATE alert_incident_history 
-           SET resolved_at = NOW(), technical_detail = CONCAT(technical_detail, ' | Resuelto: Autorecuperación de Prometheus')
-           WHERE service_id = $1 AND current_status != 'RESUELTA'`,
+           SET current_status = 'RESUELTA', resolved_at = NOW(), technical_detail = CONCAT(technical_detail, ' | Resuelto: Autorecuperación de Prometheus')
+           WHERE service_id = $1 AND current_status != 'RESUELTA'
+           RETURNING incident_id`,
           [serviceId]
         );
+
+        // Notificar asíncronamente a n8n la recuperación
+        if (updateRes.rows.length > 0) {
+          n8nService.dispatchIncidentEvent({
+            eventType: 'resolved',
+            incidentId: updateRes.rows[0]?.incident_id || serviceId,
+            serviceId,
+            serviceName: instance,
+            metricTrigger: alertname,
+            severity,
+            technicalDetail: `${summary} | Resuelto`,
+            timestamp: new Date().toISOString()
+          }).catch(e => console.warn('[n8n notify error]:', e));
+        }
       }
     }
 

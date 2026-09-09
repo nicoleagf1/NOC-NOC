@@ -1,7 +1,7 @@
 export interface MonitoringConnection {
   id: string;
   name: string;
-  type: 'prometheus' | 'uptime-kuma' | 'fortigate';
+  type: 'prometheus' | 'uptime-kuma' | 'fortigate' | 'n8n';
   url: string;
   authType: 'none' | 'basic' | 'bearer';
   authCredentials?: string;

@@ -15,8 +15,13 @@ export const pool =
     // Configuraciones recomendadas para evitar locks
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 5000,
   });
+
+// Captura errores en clientes inactivos para evitar uncaughtException
+pool.on('error', (err) => {
+  console.error('[PostgreSQL Pool Error]:', err.message);
+});
 
 if (process.env.NODE_ENV !== 'production') globalForPg.pgPool = pool;
 

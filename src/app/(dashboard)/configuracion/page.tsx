@@ -21,7 +21,8 @@ import {
   Link2,
   ChevronDown,
   X,
-  AlertCircle
+  AlertCircle,
+  Workflow
 } from "lucide-react";
 import { ConnectionDTO } from "@/lib/types/connection";
 import { HostsTab } from "@/components/configuracion/HostsTab";
@@ -119,7 +120,10 @@ export default function ConfiguracionPage() {
         body: JSON.stringify(editingConnection)
       });
       const data = await res.json();
-      setTestResult({ success: data.success, message: data.success ? data.message : data.error });
+      setTestResult({ 
+        success: data.success, 
+        message: data.message || (data.success ? 'Conexión verificada con éxito' : data.error || 'Error al conectar') 
+      });
     } catch (e: any) {
       setTestResult({ success: false, message: e.message || "Error al probar la conexión" });
     } finally {
@@ -279,11 +283,21 @@ export default function ConfiguracionPage() {
                     </div>
                     
                     <div className="flex items-center mb-4">
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center mr-4 ${conn.type === 'prometheus' ? 'bg-orange-100' : conn.type === 'fortigate' ? 'bg-blue-100' : 'bg-green-100'}`}>
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center mr-4 ${
+                        conn.type === 'prometheus' 
+                          ? 'bg-orange-100' 
+                          : conn.type === 'fortigate' 
+                          ? 'bg-blue-100' 
+                          : conn.type === 'n8n'
+                          ? 'bg-rose-100'
+                          : 'bg-green-100'
+                      }`}>
                         {conn.type === 'prometheus' ? (
                           <Activity className="w-7 h-7 text-orange-500" />
                         ) : conn.type === 'fortigate' ? (
                           <ShieldCheck className="w-7 h-7 text-blue-600" />
+                        ) : conn.type === 'n8n' ? (
+                          <Workflow className="w-7 h-7 text-[#EA4B71]" />
                         ) : (
                           <Activity className="w-7 h-7 text-green-600" />
                         )}
@@ -334,9 +348,11 @@ export default function ConfiguracionPage() {
               <div className="p-4 border-b border-gray-100 flex justify-between items-center">
                 <h3 className="text-sm font-bold text-vepagos-navy uppercase tracking-wider">Ayuda Rápida</h3>
               </div>
-              <div className="p-4 text-xs text-gray-500">
-                <p className="mb-2">Asegúrate de que las credenciales de Prometheus tengan permisos de lectura para la API `/api/v1/query`.</p>
-                <p>Si cambias el <b>Prometheus Activo</b>, el dashboard y todos sus gráficos se actualizarán instantáneamente para usar la nueva fuente de datos.</p>
+              <div className="p-4 text-xs text-gray-500 space-y-3">
+                <p><b className="text-vepagos-navy">Prometheus:</b> Requiere permisos de lectura para la API <code>/api/v1/query</code>.</p>
+                <p><b className="text-vepagos-navy">Fortigate:</b> Utiliza token de REST API Admin con permisos de lectura en FortiOS.</p>
+                <p><b className="text-[#EA4B71]">n8n:</b> Ingresa la URL base (ej. <code>http://192.168.0.110:5678</code>) y una API Key generada en <i>Settings &gt; Public API</i> (con tipo Bearer) para orquestar alertas y runbooks automáticos.</p>
+                <p>El botón <b>Probar Conexión</b> dentro del modal te permite validar el acceso en vivo antes de guardar.</p>
               </div>
             </Card>
           </div>
@@ -464,6 +480,7 @@ export default function ConfiguracionPage() {
                   <option value="prometheus">Prometheus TSDB</option>
                   <option value="uptime-kuma">Uptime Kuma</option>
                   <option value="fortigate">Fortigate (Métricas de Red)</option>
+                  <option value="n8n">n8n (Automatización & Orquestación)</option>
                 </select>
               </div>
 
@@ -472,7 +489,13 @@ export default function ConfiguracionPage() {
                 <input 
                   type="text" 
                   className="w-full text-sm border border-gray-200 rounded-md p-2"
-                  placeholder={editingConnection.type === 'fortigate' ? "ej. Fortigate Principal" : "ej. Prometheus Producción"}
+                  placeholder={
+                    editingConnection.type === 'fortigate' 
+                      ? "ej. Fortigate Principal" 
+                      : editingConnection.type === 'n8n'
+                      ? "ej. n8n Orquestador Producción"
+                      : "ej. Prometheus Producción"
+                  }
                   value={editingConnection.name || ''}
                   onChange={e => setEditingConnection({...editingConnection, name: e.target.value})}
                 />
@@ -480,12 +503,22 @@ export default function ConfiguracionPage() {
 
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                  {editingConnection.type === 'fortigate' ? 'IP Base del Firewall' : 'URL Base (Endpoint)'}
+                  {editingConnection.type === 'fortigate' 
+                    ? 'IP Base del Firewall' 
+                    : editingConnection.type === 'n8n'
+                    ? 'URL Base de n8n (o Webhook)'
+                    : 'URL Base (Endpoint)'}
                 </label>
                 <input 
                   type="url" 
                   className="w-full text-sm border border-gray-200 rounded-md p-2"
-                  placeholder={editingConnection.type === 'fortigate' ? "https://192.168.0.1:10443" : "https://prometheus.tudominio.com"}
+                  placeholder={
+                    editingConnection.type === 'fortigate' 
+                      ? "https://192.168.0.1:10443" 
+                      : editingConnection.type === 'n8n'
+                      ? "http://192.168.0.110:5678"
+                      : "https://prometheus.tudominio.com"
+                  }
                   value={editingConnection.url || ''}
                   onChange={e => setEditingConnection({...editingConnection, url: e.target.value})}
                 />
@@ -542,12 +575,12 @@ export default function ConfiguracionPage() {
                   ) : (
                     <div>
                       <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                        Token / API Key
+                        {editingConnection.type === 'n8n' ? 'API Key de n8n (o Bearer Token)' : 'Token / API Key'}
                       </label>
                       <input 
                         type="text" 
                         className="w-full text-sm border border-gray-200 rounded-md p-2 font-mono"
-                        placeholder="ej. eyJhbGciOiJIUzI1NiIs..."
+                        placeholder={editingConnection.type === 'n8n' ? "ej. n8n_api_... o clave secreta" : "ej. eyJhbGciOiJIUzI1NiIs..."}
                         value={editingConnection.authCredentials || ''}
                         onChange={e => setEditingConnection({...editingConnection, authCredentials: e.target.value})}
                       />

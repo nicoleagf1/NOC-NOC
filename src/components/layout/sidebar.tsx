@@ -20,7 +20,8 @@ import {
   ChevronLeft,
   Router,
   Cloud,
-  Wrench
+  Wrench,
+  Workflow
 } from "lucide-react";
 
 const navItems = [
@@ -56,6 +57,7 @@ const navItems = [
     title: "OPERACIONES",
     items: [
       { name: "UTILIDADES", href: "/utilidades", icon: Wrench },
+      { name: "AUTOMATIZACIÓN", href: "/automatizacion", icon: Workflow },
     ],
   },
 ];

@@ -44,9 +44,9 @@ export const connectionService = {
 
   /**
    * Obtiene la primera conexión activa de un tipo específico.
-   * Utilizado internamente por los clientes (e.g. prometheusClient) por lo que devuelve la credencial DESENMASCARADA.
+   * Utilizado internamente por los clientes (e.g. prometheusClient, n8nService) por lo que devuelve la credencial DESENMASCARADA.
    */
-  async getActiveConnection(type: 'prometheus' | 'uptime-kuma'): Promise<ConnectionDTO | null> {
+  async getActiveConnection(type: 'prometheus' | 'uptime-kuma' | 'fortigate' | 'n8n'): Promise<ConnectionDTO | null> {
     const res = await query(
       'SELECT * FROM monitoring_connections WHERE type = $1 AND is_active = TRUE LIMIT 1',
       [type]
