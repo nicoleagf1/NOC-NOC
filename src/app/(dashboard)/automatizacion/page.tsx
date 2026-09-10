@@ -55,6 +55,7 @@ interface WorkflowItem {
 export default function AutomatizacionPage() {
   const [status, setStatus] = useState<N8nStatus | null>(null);
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
+  const [wfError, setWfError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -116,6 +117,9 @@ export default function AutomatizacionPage() {
         const wfJson = await wfRes.json();
         if (wfJson.success && Array.isArray(wfJson.workflows)) {
           setWorkflows(wfJson.workflows);
+          setWfError(null);
+        } else if (wfJson.error) {
+          setWfError(wfJson.error);
         }
       }
     } catch (err) {
@@ -617,14 +621,29 @@ export default function AutomatizacionPage() {
         </div>
 
         {workflows.length === 0 ? (
-          <div className="py-8 text-center space-y-2">
+          <div className="py-8 text-center space-y-3">
             <Workflow className="w-8 h-8 text-gray-300 mx-auto" />
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-              No se encontraron workflows con la API Key actual o se está usando modo Webhook
+            <p className="text-xs font-bold text-vepagos-navy uppercase tracking-wide">
+              {wfError ? 'API de n8n no accesible para listar flujos' : 'No se encontraron workflows con la API Key actual'}
             </p>
-            <p className="text-[11px] text-gray-400 max-w-md mx-auto">
-              Para listar tus workflows en este panel, asegúrate de haber configurado una <b>API Key con permisos de lectura</b> en <i>Configuración &gt; Integraciones &gt; n8n</i>.
-            </p>
+            {wfError ? (
+              <div className="max-w-xl mx-auto p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-left space-y-1.5 text-amber-900 text-[11px]">
+                <div className="flex items-center font-bold text-amber-950 uppercase tracking-wide text-[10px]">
+                  <AlertCircle className="w-4 h-4 mr-1.5 text-amber-600 flex-shrink-0" />
+                  Ruta /api/* interceptada por Proxy Zero-Trust (Pangolin)
+                </div>
+                <p className="leading-relaxed">
+                  Tus alertas por Webhook están operando con éxito. Sin embargo, para leer la lista de workflows en este catálogo, n8n requiere que la ruta <code className="font-mono font-bold bg-white px-1.5 py-0.5 border border-amber-300 rounded text-amber-950">/api/*</code> esté configurada como <b>Ruta Pública (Bypass / Whitelist)</b> en tu proxy <b>Pangolin (pholidota.vepagos.com)</b>.
+                </p>
+                <div className="pt-1 text-[10px] text-amber-700">
+                  <b>Paso a seguir:</b> En Pangolin &gt; Recurso n8n, añade <code className="bg-white px-1 rounded font-bold">/api/*</code> y <code className="bg-white px-1 rounded font-bold">/healthz</code> a las excepciones públicas.
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-gray-400 max-w-md mx-auto">
+                Para listar tus workflows en este panel, asegúrate de haber configurado una <b>API Key con permisos de lectura</b> en <i>Configuración &gt; Integraciones &gt; n8n</i>.
+              </p>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
@@ -786,28 +805,28 @@ export default function AutomatizacionPage() {
                   <div className="w-full">
                     <div className="font-bold text-vepagos-navy uppercase mb-0.5">Conectar Nodos de Acción (Telegram / WhatsApp / Email)</div>
                     <p className="text-gray-500 leading-relaxed">
-                      Conecta la salida del nodo Webhook hacia tu bot de Telegram o servicio deseado. Puedes acceder a las variables directamente con <code className="text-indigo-600 font-bold">{"{{ $json.campo }}"}</code>:
+                      Conecta la salida del nodo Webhook hacia tu bot de Telegram. En n8n, los datos de un webhook POST se reciben dentro de <code className="text-indigo-600 font-bold font-mono">{"$json.body"}</code>:
                     </p>
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-[10px]">
                       <div className="p-2 bg-white border border-gray-200 rounded">
                         <span className="text-gray-400 block font-sans">Activo / Host:</span>
-                        <code className="text-vepagos-navy font-bold">{"{{ $json.serviceName }}"}</code>
+                        <code className="text-vepagos-navy font-bold">{"{{ $json.body?.serviceName || $json.serviceName }}"}</code>
                       </div>
                       <div className="p-2 bg-white border border-gray-200 rounded">
                         <span className="text-gray-400 block font-sans">Severidad:</span>
-                        <code className="text-rose-600 font-bold">{"{{ $json.severity }}"}</code>
+                        <code className="text-rose-600 font-bold">{"{{ $json.body?.severity || $json.severity }}"}</code>
                       </div>
                       <div className="p-2 bg-white border border-gray-200 rounded">
                         <span className="text-gray-400 block font-sans">Métrica Disparadora:</span>
-                        <code className="text-indigo-600 font-bold">{"{{ $json.metricTrigger }}"}</code>
+                        <code className="text-indigo-600 font-bold">{"{{ $json.body?.metricTrigger || $json.metricTrigger }}"}</code>
                       </div>
                       <div className="p-2 bg-white border border-gray-200 rounded">
                         <span className="text-gray-400 block font-sans">Estado del Incidente:</span>
-                        <code className="text-emerald-600 font-bold">{"{{ $json.eventType }}"}</code> (firing / resolved)
+                        <code className="text-emerald-600 font-bold">{"{{ $json.body?.eventType || $json.eventType }}"}</code>
                       </div>
                       <div className="p-2 bg-white border border-gray-200 rounded sm:col-span-2">
                         <span className="text-gray-400 block font-sans">Detalle Técnico:</span>
-                        <code className="text-gray-700 font-bold">{"{{ $json.technicalDetail }}"}</code>
+                        <code className="text-gray-700 font-bold">{"{{ $json.body?.technicalDetail || $json.technicalDetail }}"}</code>
                       </div>
                     </div>
 
@@ -815,30 +834,30 @@ export default function AutomatizacionPage() {
                     <div className="mt-3 p-3 bg-blue-50/60 border border-blue-200 rounded-lg">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wide">
-                          Plantilla Recomendada para el nodo Telegram (Campo "Text")
+                          Plantilla Definitiva para Telegram (Campo "Text")
                         </span>
                         <button
                           onClick={() => {
-                            const tpl = `🚨 *ALERTA NOC-NOC: {{ $json.severity }}*\n📍 *Servicio:* {{ $json.serviceName }}\n⚠️ *Métrica:* {{ $json.metricTrigger }}\n📝 *Detalle:* {{ $json.technicalDetail }}\n🕒 *Fecha:* {{ $json.timestamp }}`;
+                            const tpl = `🚨 *ALERTA NOC-NOC: {{ $json.body?.severity || $json.severity }}*\n📍 *Servicio:* {{ $json.body?.serviceName || $json.serviceName }}\n⚠️ *Métrica:* {{ $json.body?.metricTrigger || $json.metricTrigger }}\n📝 *Detalle:* {{ $json.body?.technicalDetail || $json.technicalDetail }}\n🕒 *Fecha:* {{ $json.body?.timestamp || $json.timestamp }}`;
                             navigator.clipboard.writeText(tpl);
                             setCopiedTelegramTpl(true);
                             setTimeout(() => setCopiedTelegramTpl(false), 2000);
                           }}
-                          className="flex items-center text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-white px-2 py-0.5 rounded border border-blue-200 transition-colors"
+                          className="flex items-center text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-white px-2 py-0.5 rounded border border-blue-200 transition-colors shadow-sm"
                         >
                           {copiedTelegramTpl ? <Check className="w-3 h-3 mr-1 text-vepagos-green" /> : <Copy className="w-3 h-3 mr-1" />}
                           {copiedTelegramTpl ? '¡Copiado!' : 'Copiar Plantilla'}
                         </button>
                       </div>
-                      <pre className="text-[10px] font-mono bg-white p-2 rounded border border-blue-100 text-blue-950 whitespace-pre-wrap leading-relaxed">
-{`🚨 *ALERTA NOC-NOC: {{ $json.severity }}*
-📍 *Servicio:* {{ $json.serviceName }}
-⚠️ *Métrica:* {{ $json.metricTrigger }}
-📝 *Detalle:* {{ $json.technicalDetail }}
-🕒 *Fecha:* {{ $json.timestamp }}`}
+                      <pre className="text-[10px] font-mono bg-white p-2.5 rounded border border-blue-100 text-blue-950 whitespace-pre-wrap leading-relaxed">
+{`🚨 *ALERTA NOC-NOC: {{ $json.body?.severity || $json.severity }}*
+📍 *Servicio:* {{ $json.body?.serviceName || $json.serviceName }}
+⚠️ *Métrica:* {{ $json.body?.metricTrigger || $json.metricTrigger }}
+📝 *Detalle:* {{ $json.body?.technicalDetail || $json.technicalDetail }}
+🕒 *Fecha:* {{ $json.body?.timestamp || $json.timestamp }}`}
                       </pre>
-                      <p className="text-[9px] text-blue-600 mt-1">
-                        * Evita fusionar variables juntas como <code className="bg-red-50 text-red-600 px-1 rounded">{"{{ $json.metric$json.technicalDetailTrigger }}"}</code>.
+                      <p className="text-[10px] text-blue-700 mt-1.5 font-medium">
+                        💡 <b>¿Por qué con <code className="bg-white px-1 border rounded">.body.</code>?</b> n8n coloca el contenido JSON del webhook dentro del contenedor <code className="font-bold">body</code>. Usar <code className="font-bold">.body?.campo || .campo</code> garantiza que siempre se extraiga el dato real.
                       </p>
                     </div>
                   </div>

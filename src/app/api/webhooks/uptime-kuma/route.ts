@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { n8nService } from '@/lib/services/n8nService';
 
 export async function POST(request: Request) {
   try {
@@ -22,6 +23,19 @@ export async function POST(request: Request) {
         `UPDATE business_services SET current_status = 'CAÍDO' WHERE uptime_kuma_monitor_id = $1`,
         [data.monitor?.id]
       );
+
+      // Notificar a n8n
+      n8nService.dispatchIncidentEvent({
+        eventType: 'firing',
+        incidentId: `kuma-${serviceId}-${Date.now()}`,
+        serviceId,
+        serviceName: monitorName,
+        metricTrigger: 'ServiceDown',
+        severity: 'CRITICAL',
+        technicalDetail: msg || `Servicio ${monitorName} inaccesible (Sondeo Uptime Kuma)`,
+        timestamp: new Date().toISOString()
+      }).catch(e => console.warn('[n8n Uptime Kuma dispatch error]:', e));
+
     } else if (status === 1) {
       // RECUPERADO -> UPDATE (El Trigger PostgreSQL actualizará el estado a RESUELTA automáticamente)
       await query(
@@ -35,6 +49,19 @@ export async function POST(request: Request) {
         `UPDATE business_services SET current_status = 'DISPONIBLE' WHERE uptime_kuma_monitor_id = $1`,
         [data.monitor?.id]
       );
+
+      // Notificar recuperación a n8n
+      n8nService.dispatchIncidentEvent({
+        eventType: 'resolved',
+        incidentId: `kuma-${serviceId}-${Date.now()}`,
+        serviceId,
+        serviceName: monitorName,
+        metricTrigger: 'ServiceDown',
+        severity: 'INFO',
+        technicalDetail: `Servicio ${monitorName} restablecido con normalidad: ${msg || 'OK'}`,
+        timestamp: new Date().toISOString()
+      }).catch(e => console.warn('[n8n Uptime Kuma dispatch error]:', e));
+
     } else {
       // WARNING / ESTADOS DEGRADADOS
       await query(
@@ -48,6 +75,18 @@ export async function POST(request: Request) {
         `UPDATE business_services SET current_status = 'DEGRADADO' WHERE uptime_kuma_monitor_id = $1`,
         [data.monitor?.id]
       );
+
+      // Notificar advertencia a n8n
+      n8nService.dispatchIncidentEvent({
+        eventType: 'firing',
+        incidentId: `kuma-${serviceId}-${Date.now()}`,
+        serviceId,
+        serviceName: monitorName,
+        metricTrigger: 'ServiceDegraded',
+        severity: 'WARNING',
+        technicalDetail: msg || `Servicio ${monitorName} en estado degradado`,
+        timestamp: new Date().toISOString()
+      }).catch(e => console.warn('[n8n Uptime Kuma dispatch error]:', e));
     }
 
     return NextResponse.json({ success: true });

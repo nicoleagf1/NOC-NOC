@@ -90,10 +90,33 @@ export const n8nService = {
 
       // Si responde con redirección a un portal SSO (Pangolin, Cloudflare Access, Pomerium, etc.)
       if (response.status >= 300 && response.status < 400) {
+        // Sondeo de contingencia: Si /healthz está protegido por SSO, probamos si el canal de Webhook está abierto y responde desde n8n
+        try {
+          const webhookProbeUrl = `${normalizedUrl}/webhook/noc-noc-incident`;
+          const wbRes = await fetch(webhookProbeUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(3000),
+            redirect: 'manual'
+          });
+          const wbType = wbRes.headers.get('content-type') || '';
+          if (wbType.includes('application/json')) {
+            const probeLatency = Date.now() - startTime;
+            return {
+              success: true,
+              message: `Canal Webhook ONLINE (${probeLatency}ms) — Motor operativo (API protegida por SSO)`,
+              latencyMs: probeLatency,
+              statusCode: 200
+            };
+          }
+        } catch {
+          // Si el sondeo falla, continúa con el mensaje de redirección estándar
+        }
+
         const redirectLocation = response.headers.get('location') || '';
         return {
           success: false,
-          message: `Instancia detrás de un proxy Zero-Trust / SSO (HTTP ${response.status}). Redirige a: ${redirectLocation}. Configura bypass o reglas públicas en el proxy.`,
+          message: `Instancia detrás de un proxy Zero-Trust / SSO (HTTP ${response.status}). Redirige a: ${redirectLocation}. Configura bypass para '/healthz' y '/api/*' en Pangolin.`,
           latencyMs,
           statusCode: response.status
         };
@@ -187,9 +210,27 @@ export const n8nService = {
           'Authorization': `Bearer ${conn.authCredentials}`
         },
         signal: controller.signal,
-        cache: 'no-store'
+        cache: 'no-store',
+        redirect: 'manual'
       });
       clearTimeout(timeoutId);
+
+      if (res.status >= 300 && res.status < 400) {
+        return {
+          success: false,
+          workflows: [],
+          error: `La API REST (/api/*) fue interceptada por el proxy Pangolin (HTTP ${res.status}). Agrega '/api/*' en las rutas públicas de Pangolin.`
+        };
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) {
+        return {
+          success: false,
+          workflows: [],
+          error: 'El proxy Pangolin devolvió HTML en vez de la API JSON de n8n. Agrega /api/* a las rutas públicas (Bypass) en Pangolin.'
+        };
+      }
 
       if (!res.ok) {
         return { success: false, workflows: [], error: `n8n API respondió con HTTP ${res.status}: ${res.statusText}` };
