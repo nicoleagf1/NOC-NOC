@@ -791,9 +791,15 @@ export default function AutomatizacionPage() {
                     <ul className="mt-2 space-y-1 font-mono text-[11px] bg-white p-2.5 rounded-lg border border-gray-200">
                       <li>• <b>HTTP Method:</b> <span className="text-[#EA4B71] font-bold">POST</span></li>
                       <li>• <b>Path:</b> <span className="text-indigo-600 font-bold">noc-noc-incident</span></li>
-                      <li>• <b>Authentication:</b> <span className="text-gray-700 font-bold">None</span> (o Header Auth si configuraste API Key)</li>
+                      <li>• <b>Authentication:</b> <span className="text-indigo-700 font-bold">Header Auth</span> (Recomendado) o <span className="text-gray-500">None</span></li>
+                      <li>• <b>Header Name:</b> <span className="text-vepagos-navy font-bold">X-NOC-TOKEN</span> (o <code>X-N8N-API-KEY</code>)</li>
+                      <li>• <b>Header Value:</b> <span className="text-emerald-700 font-bold">Tu API Key o secreto configurado en NOC-NOC</span></li>
                       <li>• <b>Respond:</b> <span className="text-emerald-600 font-bold">Immediately</span> (Response Code: 200)</li>
                     </ul>
+                    <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-800 flex items-start space-x-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 mt-0.5 text-emerald-600 flex-shrink-0" />
+                      <span><b>Blindaje de Seguridad (SEC-NET-02):</b> Configurar <i>Header Auth</i> con tu API Key garantiza que nadie desde Internet pueda inyectar mensajes en tu bot de Telegram a través del bypass público de Pangolin.</span>
+                    </div>
                   </div>
                 </div>
 

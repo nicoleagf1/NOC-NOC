@@ -1,8 +1,71 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { query } from '@/lib/db';
 import { n8nService } from '@/lib/services/n8nService';
 
+/**
+ * Valida de forma segura el token secreto enviado por Alertmanager (SEC-MON-01)
+ */
+function verifyWebhookToken(request: Request): boolean {
+  const expectedToken = process.env.PROMETHEUS_WEBHOOK_SECRET;
+
+  // Si no está configurado el secreto en las variables de entorno, emitir advertencia
+  if (!expectedToken) {
+    console.warn('[SECURITY WARNING] PROMETHEUS_WEBHOOK_SECRET no está definido. El webhook de Prometheus está operando sin autenticación.');
+    return true;
+  }
+
+  // 1. Extraer del Header Authorization: Bearer <token>
+  const authHeader = request.headers.get('authorization') || '';
+  let providedToken = '';
+  if (authHeader.startsWith('Bearer ')) {
+    providedToken = authHeader.substring(7).trim();
+  }
+
+  // 2. Extraer del Header X-Webhook-Secret
+  if (!providedToken) {
+    providedToken = request.headers.get('x-webhook-secret')?.trim() || '';
+  }
+
+  // 3. Extraer del Query Parameter ?token=<token>
+  if (!providedToken) {
+    try {
+      const url = new URL(request.url);
+      providedToken = url.searchParams.get('token')?.trim() || '';
+    } catch {
+      // Ignorar error al parsear URL
+    }
+  }
+
+  if (!providedToken) {
+    return false;
+  }
+
+  // Comparación resistente a ataques de temporización (timing attack resistant)
+  const expectedBuffer = Buffer.from(expectedToken, 'utf-8');
+  const providedBuffer = Buffer.from(providedToken, 'utf-8');
+
+  if (expectedBuffer.length !== providedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
 export async function POST(request: Request) {
+  // Validación obligatoria de seguridad (Control SEC-MON-01)
+  if (!verifyWebhookToken(request)) {
+    const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'IP desconocida';
+    console.warn(`[SECURITY ALERT] Petición no autorizada al webhook de Prometheus desde: ${clientIp}`);
+    return NextResponse.json(
+      { 
+        error: 'No autorizado: Se requiere un token Bearer o encabezado X-Webhook-Secret válido para enviar alertas a NOC-NOC.',
+        code: 'UNAUTHORIZED_WEBHOOK'
+      }, 
+      { status: 401 }
+    );
+  }
+
   try {
     const payload = await request.json();
 

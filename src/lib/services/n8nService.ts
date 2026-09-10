@@ -285,10 +285,12 @@ export const n8nService = {
       if (conn.authCredentials) {
         if (conn.authType === 'bearer') {
           headers['X-N8N-API-KEY'] = conn.authCredentials;
+          headers['X-NOC-TOKEN'] = conn.authCredentials;
           headers['Authorization'] = `Bearer ${conn.authCredentials}`;
         } else if (conn.authType === 'basic') {
           const encoded = Buffer.from(conn.authCredentials).toString('base64');
           headers['Authorization'] = `Basic ${encoded}`;
+          headers['X-NOC-TOKEN'] = conn.authCredentials;
         }
       }
 
@@ -315,6 +317,17 @@ export const n8nService = {
           latencyMs,
           targetUrl,
           message: `Bloqueado por Proxy Zero-Trust / SSO (HTTP ${res.status}). Redirigido a: ${redirectLocation}. Debes configurar una excepción pública (Bypass) para '/webhook/*' y '/webhook-test/*' en Pangolin.`
+        };
+      }
+
+      // Detección de rechazo por autenticación en el webhook de n8n
+      if (res.status === 401 || res.status === 403) {
+        return {
+          success: false,
+          statusCode: res.status,
+          latencyMs,
+          targetUrl,
+          message: `Rechazado por n8n (HTTP ${res.status}). El nodo Webhook tiene Header Auth configurado y la credencial no coincide.`
         };
       }
 
