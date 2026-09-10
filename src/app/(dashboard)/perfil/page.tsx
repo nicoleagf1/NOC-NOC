@@ -301,29 +301,31 @@ export default function PerfilPage() {
                   <Lock className="w-5 h-5 mr-2 text-vepagos-green" /> Seguridad de Cuenta (2FA)
                 </h3>
                 
-                <div className={`p-5 rounded-xl border ${user?.isTwoFactorEnabled ? 'bg-green-50/50 border-green-200' : 'bg-gray-50 border-gray-200'} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+                <div className={`p-5 rounded-xl border ${user?.isTwoFactorEnabled ? 'bg-green-50/50 border-green-200' : 'bg-amber-50 border-amber-200'} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
                   <div>
-                    <h4 className="font-bold text-gray-800 flex items-center">
+                    <h4 className="font-bold text-gray-800 flex items-center flex-wrap gap-2">
                       Autenticación de Dos Factores 
-                      {user?.isTwoFactorEnabled && (
-                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                          Activado
+                      {user?.isTwoFactorEnabled ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800 border border-green-300">
+                          Obligatorio (Activo)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                          Pendiente de Configuración
                         </span>
                       )}
                     </h4>
                     <p className="text-sm text-gray-600 mt-1 max-w-md">
-                      Añade una capa adicional de seguridad requerida para iniciar sesión, protegiendo tu cuenta de accesos no autorizados.
+                      El segundo factor de autenticación es obligatorio para todos los usuarios por directiva de seguridad institucional (SEC-IAM-01).
                     </p>
                   </div>
                   
                   <div>
                     {user?.isTwoFactorEnabled ? (
-                      <button 
-                        onClick={() => setShowDisable2FAModal(true)}
-                        className="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-bold rounded-lg transition-colors whitespace-nowrap"
-                      >
-                        Desactivar 2FA
-                      </button>
+                      <div className="flex items-center text-xs font-semibold text-gray-500 bg-white px-3 py-2 rounded-lg border border-gray-200 shadow-sm">
+                        <Lock className="w-4 h-4 mr-1.5 text-vepagos-green" />
+                        Directiva Institucional Activa
+                      </div>
                     ) : (
                       <button 
                         onClick={handleGenerate2FA}
@@ -331,7 +333,7 @@ export default function PerfilPage() {
                         className="flex items-center justify-center px-4 py-2 bg-vepagos-green text-vepagos-navy hover:brightness-110 text-sm font-bold rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
                       >
                         {isProcessing2FA ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
-                        Configurar 2FA
+                        Configurar 2FA Ahora
                       </button>
                     )}
                   </div>

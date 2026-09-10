@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, AlertCircle, Activity, Bell, BarChart3, ShieldCheck, Radar } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Activity, Bell, BarChart3, ShieldCheck, Radar, Copy, Check, Key } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,6 +44,10 @@ export default function LoginPage() {
 
   // States para 2FA
   const [requires2FA, setRequires2FA] = useState(false);
+  const [requires2FASetup, setRequires2FASetup] = useState(false);
+  const [setupQrCode, setSetupQrCode] = useState<string | null>(null);
+  const [setupSecret, setSetupSecret] = useState<string | null>(null);
+  const [copiedSecret, setCopiedSecret] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState("");
 
   // States para Recuperar Contraseña
@@ -100,10 +104,14 @@ export default function LoginPage() {
       if (data.mustChangePassword) {
         setRequiresPasswordChange(true);
         setUserId(data.userId);
+      } else if (data.requires2FASetup) {
+        setRequires2FASetup(true);
+        setSetupQrCode(data.qrDataUrl);
+        setSetupSecret(data.secret);
       } else if (data.requires2FA) {
         setRequires2FA(true);
       } else if (data.success) {
-        window.location.href = "/";
+        window.location.href = data.redirectUrl || "/";
       }
     } catch (err: any) {
       setError("Error de red. Intenta nuevamente.");
@@ -281,13 +289,19 @@ export default function LoginPage() {
             <h2 className="text-[40px] md:text-[48px] font-barlow-condensed font-bold text-[#001F60] uppercase leading-none">
               {isForgotPassword 
                 ? "RECUPERAR CONTRASEÑA" 
+                : requires2FASetup
+                ? "CONFIGURAR 2FA"
+                : requires2FA
+                ? "AUTENTICACIÓN 2FA"
                 : !requiresPasswordChange 
                   ? "INICIAR SESIÓN" 
                   : "ACTUALIZAR CONTRASEÑA"}
             </h2>
             <div className="w-16 h-1 bg-[#00CE7C] mt-4 mb-4 rounded-full"></div>
             <p className="text-[16px] text-[#001F60] font-medium opacity-80">
-              {requires2FA
+              {requires2FASetup
+                ? "Por directiva institucional de seguridad (SEC-IAM-01), debe vincular un autenticador para completar el acceso."
+                : requires2FA
                 ? "Ingresa el código de 6 dígitos de tu aplicación autenticadora."
                 : isForgotPassword
                 ? "Ingresa tu usuario o correo para recibir las instrucciones."
@@ -305,7 +319,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {!isForgotPassword && !requiresPasswordChange && !requires2FA ? (
+            {!isForgotPassword && !requiresPasswordChange && !requires2FA && !requires2FASetup ? (
               // PASO 1: LOGIN NORMAL
               <form className="space-y-5 animate-fade-in" onSubmit={handleLogin}>
                 {/* Campo Usuario */}
@@ -413,6 +427,91 @@ export default function LoginPage() {
                   <span className="text-[13px] font-barlow-condensed font-bold text-[#001F60] uppercase tracking-wider">
                     ACCESO SEGURO
                   </span>
+                </div>
+              </form>
+            ) : requires2FASetup ? (
+              // PASO: ENROLAMIENTO OBLIGATORIO DE 2FA (SEC-IAM-01)
+              <form className="space-y-4 animate-fade-in" onSubmit={handleVerify2FA}>
+                <div className="bg-blue-50 border border-blue-200 text-blue-900 rounded-[10px] p-3 text-xs flex items-start space-x-2">
+                  <Key className="w-4 h-4 text-vepagos-navy flex-shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Paso 1:</strong> Escanee este código con <strong>Google Authenticator</strong>, <strong>Authy</strong> o similar.
+                  </span>
+                </div>
+
+                {setupQrCode ? (
+                  <div className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded-[12px]">
+                    <img src={setupQrCode} alt="Código QR 2FA" className="w-44 h-44 rounded-lg shadow-sm border border-white" />
+                    
+                    {setupSecret && (
+                      <div className="mt-2 w-full text-center">
+                        <span className="text-[11px] text-gray-500 font-mono block">¿No puede escanear? Clave manual:</span>
+                        <div className="flex items-center justify-center space-x-2 mt-1">
+                          <code className="text-[12px] bg-white px-2 py-1 rounded border border-gray-300 font-mono font-bold text-[#001F60] tracking-wider select-all">
+                            {setupSecret}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(setupSecret);
+                              setCopiedSecret(true);
+                              setTimeout(() => setCopiedSecret(false), 2000);
+                            }}
+                            className="text-gray-500 hover:text-vepagos-navy p-1 transition-colors"
+                            title="Copiar clave"
+                          >
+                            {copiedSecret ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-44 h-44 mx-auto bg-gray-100 animate-pulse rounded-lg flex items-center justify-center text-xs text-gray-400">
+                    Generando QR...
+                  </div>
+                )}
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[13px] font-barlow-condensed font-bold text-[#001F60] uppercase tracking-wide">
+                    Paso 2: Ingrese código de 6 dígitos
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000"
+                    className="w-full h-[48px] px-4 bg-white border-[1.5px] border-[#E5E9F2] rounded-[10px] text-[22px] text-center tracking-[0.4em] text-[#001F60] placeholder:text-[#6E7B99] placeholder:tracking-normal focus:outline-none focus:border-[#00CE7C] focus:ring-[3px] focus:ring-[#00CE7C]/10 transition-all duration-200 font-mono"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isLoading || twoFactorCode.length !== 6}
+                    className="w-full h-[52px] bg-[#00CE7C] hover:bg-[#00B36C] text-[#001F60] rounded-[999px] font-barlow-condensed font-bold text-[17px] uppercase tracking-wider transition-colors duration-200 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed group"
+                  >
+                    {isLoading ? "VERIFICANDO..." : "VINCULAR Y ACCEDER"}
+                    {!isLoading && <span className="ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200">→</span>}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRequires2FASetup(false);
+                      setSetupQrCode(null);
+                      setSetupSecret(null);
+                      setTwoFactorCode("");
+                      setError(null);
+                    }}
+                    className="text-[13px] font-barlow-condensed font-bold text-[#001F60] hover:text-[#00CE7C] transition-colors tracking-wide uppercase underline"
+                  >
+                    CANCELAR Y VOLVER
+                  </button>
                 </div>
               </form>
             ) : requires2FA ? (

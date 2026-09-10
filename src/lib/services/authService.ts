@@ -64,25 +64,36 @@ export const authService = {
   },
 
   /**
-   * Genera un JWT temporal para indicar que el 2FA está pendiente
+   * Genera un JWT temporal para indicar que el 2FA o el enrolamiento de 2FA está pendiente
    */
-  async sign2faPendingToken(userId: string): Promise<string> {
+  async sign2faPendingToken(
+    userId: string,
+    tempSecret?: string,
+    purpose: '2fa_pending' | '2fa_setup_pending' = '2fa_pending'
+  ): Promise<string> {
     const alg = 'HS256';
-    return new SignJWT({ userId, purpose: '2fa_pending' })
+    const payload: Record<string, any> = { userId, purpose };
+    if (tempSecret) {
+      payload.tempSecret = tempSecret;
+    }
+    const expiresIn = purpose === '2fa_setup_pending' ? '15m' : '5m';
+    return new SignJWT(payload)
       .setProtectedHeader({ alg })
       .setIssuedAt()
-      .setExpirationTime('5m') // Válido por 5 minutos
+      .setExpirationTime(expiresIn)
       .sign(getSecretKey());
   },
 
   /**
-   * Verifica el JWT temporal de 2FA
+   * Verifica el JWT temporal de 2FA o enrolamiento 2FA
    */
-  async verify2faPendingToken(token: string): Promise<{ userId: string } | null> {
+  async verify2faPendingToken(
+    token: string
+  ): Promise<{ userId: string; purpose: '2fa_pending' | '2fa_setup_pending'; tempSecret?: string } | null> {
     try {
       const { payload } = await jwtVerify(token, getSecretKey());
-      if (payload.purpose !== '2fa_pending') return null;
-      return payload as unknown as { userId: string };
+      if (payload.purpose !== '2fa_pending' && payload.purpose !== '2fa_setup_pending') return null;
+      return payload as unknown as { userId: string; purpose: '2fa_pending' | '2fa_setup_pending'; tempSecret?: string };
     } catch (error) {
       return null;
     }
