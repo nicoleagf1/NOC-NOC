@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SparkAreaChart, Tracker, LineChart } from "@tremor/react";
@@ -145,26 +146,45 @@ ${isResolved ? `Duración: ${Math.floor(incident.duration_seconds / 60)} min ${i
   const openConfigModal = (service: any) => {
     setOpenDropdownId(null);
     setConfigModalService(service);
-    setConfigInterval(60);
-    setConfigRetries(1);
+    const initialInterval = service.monitorInterval ?? service.monitor_interval ?? 60;
+    const initialRetries = service.maxRetries ?? service.monitorConfig?.maxretries ?? 1;
+    setConfigInterval(Math.max(1, Math.min(60, Number(initialInterval) || 60)));
+    setConfigRetries(Math.max(0, Number(initialRetries) || 0));
   };
 
   const saveConfig = async () => {
     if (!configModalService) return;
     setConfigSaving(true);
     try {
-      const res = await fetch(`/api/services/${configModalService.id}/config`, {
+      const serviceIdentifier = configModalService.dbId || configModalService.id;
+      const res = await fetch(`/api/services/${serviceIdentifier}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ monitor_interval: configInterval, maxretries: configRetries })
       });
       if (res.ok) {
+        // Actualizar el estado local inmediatamente
+        setServices(prev => prev.map(s => {
+          if (s.id === configModalService.id || (s.dbId && s.dbId === serviceIdentifier)) {
+            return {
+              ...s,
+              monitorInterval: configInterval,
+              monitor_interval: configInterval,
+              maxRetries: configRetries,
+              monitorConfig: { ...(s.monitorConfig || {}), maxretries: configRetries }
+            };
+          }
+          return s;
+        }));
         setConfigModalService(null);
+        await fetchServices();
       } else {
-        console.error("Config save failed");
+        const errorJson = await res.json().catch(() => ({}));
+        alert(`Error al guardar configuración: ${errorJson.error || 'Operación fallida'}`);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error("Config save failed", e);
+      alert(`Error de conexión al guardar configuración: ${e.message}`);
     } finally {
       setConfigSaving(false);
     }
@@ -470,10 +490,10 @@ ${isResolved ? `Duración: ${Math.floor(incident.duration_seconds / 60)} min ${i
       </div>
 
       {/* Modal Telemetría */}
-      {selectedServiceForModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 animate-in fade-in duration-200 backdrop-blur-sm">
-          <Card className="w-full max-w-3xl bg-white overflow-hidden shadow-2xl flex flex-col max-h-[90vh] rounded-[var(--radius-card)]">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
+      {selectedServiceForModal && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-3xl bg-white/95 backdrop-blur-xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] rounded-[var(--radius-card)] border border-white/60">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100/80 bg-gray-50/50 backdrop-blur-sm">
               <div className="flex items-center">
                 <div className={`w-2.5 h-2.5 rounded-full mr-3 ${selectedServiceForModal.status === 'up' ? 'bg-vepagos-green' : 'bg-red-500 animate-pulse'}`}></div>
                 <h2 className="text-lg font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide">
@@ -572,14 +592,15 @@ ${isResolved ? `Duración: ${Math.floor(incident.duration_seconds / 60)} min ${i
                </button>
             </div>
           </Card>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal Historial */}
-      {historyModalServiceId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 animate-in fade-in duration-200 backdrop-blur-sm">
-          <Card className="w-full max-w-2xl bg-white overflow-hidden shadow-2xl flex flex-col max-h-[80vh] rounded-[var(--radius-card)]">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
+      {historyModalServiceId && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-2xl bg-white/95 backdrop-blur-xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh] rounded-[var(--radius-card)] border border-white/60">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100/80 bg-gray-50/50 backdrop-blur-sm">
               <h2 className="text-lg font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide flex items-center">
                 <History className="w-5 h-5 mr-2 text-gray-400" />
                 Historial de Eventos
@@ -648,76 +669,135 @@ ${isResolved ? `Duración: ${Math.floor(incident.duration_seconds / 60)} min ${i
                </button>
             </div>
           </Card>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Modal Umbrales */}
-      {configModalService && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 animate-in fade-in duration-200 backdrop-blur-sm">
-          <Card className="w-full max-w-md bg-white overflow-hidden shadow-2xl flex flex-col rounded-[var(--radius-card)]">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
+      {/* Modal Umbrales con Efecto Glass y Rango 1 a 60s */}
+      {configModalService && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white/95 backdrop-blur-xl overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,31,96,0.3)] border border-white/60 rounded-2xl flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100/80 bg-white/50 backdrop-blur-sm">
               <h2 className="text-lg font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide flex items-center">
-                <Settings className="w-5 h-5 mr-2 text-gray-400" />
+                <Settings className="w-5 h-5 mr-2 text-vepagos-green" />
                 Configurar Umbrales
               </h2>
-              <button onClick={() => setConfigModalService(null)} className="text-gray-400 hover:text-red-500 transition-colors p-1 bg-white rounded-full border border-gray-200 shadow-sm">
+              <button 
+                onClick={() => setConfigModalService(null)} 
+                className="text-gray-400 hover:text-red-500 transition-colors p-1 bg-white/80 rounded-full border border-gray-200/80 shadow-sm"
+              >
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
             
-            <div className="p-6 space-y-6 bg-white">
-              <p className="text-sm text-gray-500">
-                Ajusta la sensibilidad de monitoreo para <strong className="text-vepagos-navy">{configModalService.name}</strong> y mitiga falsas alarmas.
+            <div className="p-6 space-y-5 bg-white/60">
+              <p className="text-sm text-gray-600">
+                Ajusta la sensibilidad y frecuencia de monitoreo para <strong className="text-vepagos-navy font-bold">{configModalService.name}</strong>.
               </p>
 
               <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-vepagos-navy uppercase tracking-widest flex justify-between">
-                    <span>Intervalo de Comprobación</span>
-                    <span className="text-vepagos-green">{configInterval} seg</span>
-                  </label>
-                  <p className="text-[10px] text-gray-400 mb-2">Frecuencia con la que se hace ping al servicio.</p>
+                {/* Intervalo 1 a 60 segundos */}
+                <div className="bg-white/80 p-4 rounded-xl border border-gray-200/70 shadow-sm space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold text-vepagos-navy uppercase tracking-wider">
+                      Intervalo de Comprobación
+                    </label>
+                    <span className="font-mono font-bold text-sm bg-vepagos-green/20 text-vepagos-navy border border-vepagos-green/40 px-2.5 py-0.5 rounded-full">
+                      {configInterval} seg
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Frecuencia de muestreo (mínimo 1s, máximo 60s).
+                  </p>
+                  
                   <input 
-                    type="range" min="20" max="300" step="10" 
+                    type="range" 
+                    min="1" 
+                    max="60" 
+                    step="1" 
                     value={configInterval} 
-                    onChange={(e) => setConfigInterval(parseInt(e.target.value))}
-                    className="w-full accent-vepagos-green"
+                    onChange={(e) => setConfigInterval(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
+                    className="w-full accent-vepagos-green cursor-pointer h-2 bg-gray-200 rounded-lg"
                   />
+
+                  <div className="flex justify-between text-[10px] text-gray-400 font-bold px-0.5">
+                    <span>1s</span>
+                    <span>15s</span>
+                    <span>30s</span>
+                    <span>45s</span>
+                    <span>60s</span>
+                  </div>
+
+                  {/* Botones de selección rápida */}
+                  <div className="flex gap-1.5 pt-1">
+                    {[1, 5, 10, 15, 30, 60].map(sec => (
+                      <button
+                        key={sec}
+                        type="button"
+                        onClick={() => setConfigInterval(sec)}
+                        className={`flex-1 py-1 text-[11px] font-bold rounded-md border transition-all ${
+                          configInterval === sec 
+                            ? 'bg-vepagos-green text-vepagos-navy border-vepagos-green shadow-xs' 
+                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        {sec}s
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-vepagos-navy uppercase tracking-widest flex justify-between">
-                    <span>Límite de Reintentos</span>
-                    <span className="text-amber-500">{configRetries} reintentos</span>
-                  </label>
-                  <p className="text-[10px] text-gray-400 mb-2">Reintentos fallidos requeridos antes de declarar el servicio caído.</p>
+                {/* Reintentos */}
+                <div className="bg-white/80 p-4 rounded-xl border border-gray-200/70 shadow-sm space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold text-vepagos-navy uppercase tracking-wider">
+                      Límite de Reintentos
+                    </label>
+                    <span className="text-amber-700 font-mono font-bold text-sm bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+                      {configRetries} {configRetries === 1 ? 'reintento' : 'reintentos'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Comprobaciones fallidas antes de declarar el servicio caído.
+                  </p>
                   <input 
-                    type="range" min="0" max="10" step="1" 
+                    type="range" 
+                    min="0" 
+                    max="10" 
+                    step="1" 
                     value={configRetries} 
-                    onChange={(e) => setConfigRetries(parseInt(e.target.value))}
-                    className="w-full accent-amber-500"
+                    onChange={(e) => setConfigRetries(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full accent-amber-500 cursor-pointer h-2 bg-gray-200 rounded-lg"
                   />
+                  <div className="flex justify-between text-[10px] text-gray-400 font-bold px-0.5">
+                    <span>0 (Inmediato)</span>
+                    <span>5</span>
+                    <span>10</span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
-               <button 
-                  onClick={() => setConfigModalService(null)}
-                  className="px-4 py-2 bg-white border border-gray-200 rounded text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                 Cancelar
-               </button>
-               <button 
-                  onClick={saveConfig}
-                  disabled={configSaving}
-                  className="px-4 py-2 bg-vepagos-green text-white rounded text-xs font-bold hover:bg-vepagos-green/90 transition-colors flex items-center disabled:opacity-75"
-                >
-                 {configSaving ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : null}
-                 Guardar Cambios
-               </button>
+
+            <div className="p-4 border-t border-gray-100/80 bg-gray-50/80 backdrop-blur-sm flex justify-end gap-2">
+              <button 
+                onClick={() => setConfigModalService(null)}
+                className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+                disabled={configSaving}
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={saveConfig}
+                disabled={configSaving}
+                className="px-5 py-2 bg-vepagos-green text-vepagos-navy rounded-lg text-xs font-bold hover:brightness-105 transition-all flex items-center shadow-sm disabled:opacity-75"
+              >
+                {configSaving ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : null}
+                {configSaving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
             </div>
-          </Card>
-        </div>
+          </div>
+        </div>,
+        document.body
       )}
 
     </div>

@@ -140,8 +140,8 @@ export function ServicesTab() {
 
       {/* Modal */}
       {isModalOpen && editingService && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <Card className="w-full max-w-md bg-white overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] rounded-2xl border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-vepagos-navy/40 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-md bg-white/95 backdrop-blur-xl overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,31,96,0.3)] rounded-2xl border border-white/60 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold font-barlow-condensed text-vepagos-navy uppercase tracking-wide">
                 {editingService.id ? 'Editar Servicio' : 'Añadir Servicio Web'}
@@ -223,8 +223,8 @@ export function ServicesTab() {
               )}
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Intervalo (Latidos por segundo)</label>
-                <input type="number" min="10" className="w-full text-sm border border-gray-200 rounded-md p-2" value={editingService.monitor_interval || 60} onChange={e => setEditingService({...editingService, monitor_interval: parseInt(e.target.value) || 60})} />
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Intervalo (Latidos por segundo, 1 a 60s)</label>
+                <input type="number" min="1" max="3600" className="w-full text-sm border border-gray-200 rounded-md p-2" value={editingService.monitor_interval || 60} onChange={e => setEditingService({...editingService, monitor_interval: parseInt(e.target.value) || 60})} />
               </div>
 
               <div>

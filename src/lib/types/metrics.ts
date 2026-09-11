@@ -32,12 +32,16 @@ export interface PrometheusResponse<T = PrometheusVectorResult[] | PrometheusMat
 
 export interface ServiceStatusDTO {
   id: string;
+  dbId?: string;
   name: string;
   status: "up" | "down" | "degraded";
   uptimePercent: number;
   latencyMs: number;
   isMaintenance?: boolean;
   history?: { time: string; Ping: number }[]; // ECG data
+  monitorInterval?: number;
+  maxRetries?: number;
+  monitorConfig?: Record<string, any>;
 }
 
 export interface SystemResourceDTO {

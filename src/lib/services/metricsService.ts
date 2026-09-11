@@ -6,7 +6,7 @@ import { io } from "socket.io-client";
 
 export async function getServiceStatuses(): Promise<ServiceStatusDTO[]> {
   try {
-    const res = await query('SELECT id, name, slug, endpoint_url, current_status, uptime_kuma_monitor_id, is_maintenance FROM business_services');
+    const res = await query('SELECT id, name, slug, endpoint_url, current_status, uptime_kuma_monitor_id, is_maintenance, monitor_interval, monitor_config FROM business_services');
     
     // 1. Obtener latencias reales desde Uptime Kuma de forma dinámica (Puente de Telemetría)
     let realHeartbeats: Record<string, any[]> = {};
@@ -78,13 +78,21 @@ export async function getServiceStatuses(): Promise<ServiceStatusDTO[]> {
         }
       }
       
+      const monitorConfig = row.monitor_config || {};
+      const maxRetries = monitorConfig.maxretries !== undefined ? Number(monitorConfig.maxretries) : 1;
+      const monitorInterval = row.monitor_interval !== null && row.monitor_interval !== undefined ? Number(row.monitor_interval) : 60;
+
       return {
         id: row.slug || row.id,
+        dbId: row.id,
         name: row.name,
         status: status,
         uptimePercent: status === 'up' ? 100 : (status === 'degraded' ? 95 : 0), 
         latencyMs: currentLatency,
         isMaintenance: row.is_maintenance || false,
+        monitorInterval: monitorInterval,
+        maxRetries: maxRetries,
+        monitorConfig: monitorConfig,
         history: history
       };
     });

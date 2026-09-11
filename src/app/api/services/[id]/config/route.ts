@@ -7,17 +7,25 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
   try {
     const params = await props.params;
     const { id } = params;
-    const { monitor_interval, maxretries } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { monitor_interval, maxretries } = body;
 
-    if (!monitor_interval || monitor_interval < 20) {
-      return NextResponse.json({ error: 'Interval must be at least 20 seconds' }, { status: 400 });
+    const parsedInterval = parseInt(monitor_interval);
+    if (isNaN(parsedInterval) || parsedInterval < 1) {
+      return NextResponse.json({ error: 'El intervalo debe ser de al menos 1 segundo' }, { status: 400 });
     }
 
-    // Actualizar DB local
-    const monitorConfigStr = JSON.stringify({ maxretries: maxretries || 0 });
+    const parsedRetries = maxretries !== undefined ? Math.max(0, parseInt(maxretries) || 0) : 1;
+
+    // Actualizar DB local fusionando monitor_config para no perder propiedades previas
+    const monitorConfigStr = JSON.stringify({ maxretries: parsedRetries });
     const res = await query(
-      'UPDATE business_services SET monitor_interval = $1, monitor_config = $2 WHERE id::text = $3 OR slug = $3 RETURNING *',
-      [monitor_interval, monitorConfigStr, id]
+      `UPDATE business_services 
+       SET monitor_interval = $1, 
+           monitor_config = COALESCE(monitor_config, '{}'::jsonb) || $2::jsonb 
+       WHERE id::text = $3 OR slug = $3 
+       RETURNING *`,
+      [parsedInterval, monitorConfigStr, id]
     );
 
     if (res.rowCount === 0) {
@@ -40,9 +48,9 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
                 socket.emit('getMonitor', service.uptime_kuma_monitor_id, (resGet: any) => {
                   if (resGet.ok && resGet.monitor) {
                     const monitor = resGet.monitor;
-                    monitor.interval = monitor_interval;
-                    monitor.retryInterval = monitor_interval;
-                    monitor.maxretries = maxretries || 0;
+                    monitor.interval = parsedInterval;
+                    monitor.retryInterval = parsedInterval;
+                    monitor.maxretries = parsedRetries;
                     
                     socket.emit('editMonitor', monitor, (resEdit: any) => {
                       socket.disconnect();
