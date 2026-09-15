@@ -86,7 +86,8 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
                   retryInterval: updatedService.monitor_interval ? parseInt(updatedService.monitor_interval) : 60,
                   maxretries: 0,
                   upsideDown: false,
-                  accepted_statuscodes: ["200-299"]
+                  accepted_statuscodes: ["200-299"],
+                  notificationIDList: { "1": true, "2": true }
                 };
 
                 const config = updatedService.monitor_config || {};

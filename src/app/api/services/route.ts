@@ -65,7 +65,8 @@ export async function POST(req: Request) {
                   retryInterval: monitor_interval ? parseInt(monitor_interval) : 60,
                   maxretries: 0,
                   upsideDown: false,
-                  accepted_statuscodes: ["200-299"] // Uptime Kuma requiere este array incluso para Ping/DNS
+                  accepted_statuscodes: ["200-299"], // Uptime Kuma requiere este array incluso para Ping/DNS
+                  notificationIDList: { "1": true, "2": true }
                 };
 
                 const config = monitor_config || {};

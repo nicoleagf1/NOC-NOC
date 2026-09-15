@@ -11,5 +11,5 @@ route:
 receivers:
   - name: 'noc-noc-webhook'
     webhook_configs:
-      - url: 'http://noc-noc-app:3000/api/webhooks/prometheus'
+      - url: 'http://noc-noc-app:3000/api/webhooks/prometheus?token=37a0e14caec38aa2b5d72755b1a32c35059257d1139ecbe726129bfcfb3af2e1'
         send_resolved: true

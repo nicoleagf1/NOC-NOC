@@ -282,15 +282,18 @@ export const n8nService = {
         'User-Agent': 'NOC-NOC-Dispatcher/1.0'
       };
 
+      const webhookSecret = process.env.PROMETHEUS_WEBHOOK_SECRET || conn.authCredentials;
+      if (webhookSecret) {
+        headers['X-NOC-TOKEN'] = webhookSecret;
+      }
+
       if (conn.authCredentials) {
         if (conn.authType === 'bearer') {
           headers['X-N8N-API-KEY'] = conn.authCredentials;
-          headers['X-NOC-TOKEN'] = conn.authCredentials;
           headers['Authorization'] = `Bearer ${conn.authCredentials}`;
         } else if (conn.authType === 'basic') {
           const encoded = Buffer.from(conn.authCredentials).toString('base64');
           headers['Authorization'] = `Basic ${encoded}`;
-          headers['X-NOC-TOKEN'] = conn.authCredentials;
         }
       }
 
