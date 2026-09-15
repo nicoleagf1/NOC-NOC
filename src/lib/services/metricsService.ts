@@ -273,42 +273,197 @@ export async function getInfrastructureDashboardData(grupo = 'TODOS', periodo = 
   else if (hours <= 24) step = "30m";
   else step = "2h";
 
+  const groupUpper = (grupo || 'TODOS').trim().toUpperCase();
+
+  // 1. Obtener inventario de servidores de infraestructura desde la base de datos
+  let dbHosts: any[] = [];
+  try {
+    const res = await query('SELECT * FROM infrastructure_hosts WHERE is_monitored = true');
+    dbHosts = res.rows || [];
+  } catch (err) {
+    console.error('[metricsService] Error cargando infrastructure_hosts:', err);
+  }
+
+  const hostByIpOrName = new Map<string, any>();
+  for (const h of dbHosts) {
+    if (h.ip_address) hostByIpOrName.set(String(h.ip_address).trim(), h);
+    if (h.hostname) hostByIpOrName.set(String(h.hostname).trim().toLowerCase(), h);
+  }
+
+  // Clasificador analítico de instancias (identidad, sistema operativo, rol)
+  const classifyHost = (instance: string) => {
+    const rawHost = (instance || '').split(':')[0].trim();
+    const port = (instance || '').split(':')[1] || '';
+    const dbMatch = hostByIpOrName.get(rawHost) || hostByIpOrName.get(rawHost.toLowerCase());
+
+    let osType = 'Linux';
+    let hostname = rawHost;
+    let serverRole = 'Servidor';
+    let ip = rawHost;
+
+    if (dbMatch) {
+      osType = dbMatch.os_type || (port === '9182' ? 'Windows' : 'Linux');
+      hostname = dbMatch.hostname || rawHost;
+      serverRole = dbMatch.server_role || 'Servidor';
+      ip = dbMatch.ip_address || rawHost;
+    } else {
+      if (port === '9182' || rawHost.toLowerCase().includes('win')) {
+        osType = 'Windows';
+      } else {
+        osType = 'Linux';
+      }
+      if (rawHost === 'node-exporter') {
+        hostname = 'Linux (Node Exporter)';
+      }
+    }
+
+    const isDatabase = serverRole.toLowerCase().includes('database') ||
+                       serverRole.toLowerCase().includes('db') ||
+                       serverRole.toLowerCase().includes('sql') ||
+                       hostname.toLowerCase().includes('db');
+
+    return {
+      rawHost,
+      port,
+      hostname,
+      ip,
+      osType,
+      serverRole,
+      isDatabase,
+      dbMatch
+    };
+  };
+
+  const matchesGroup = (info: ReturnType<typeof classifyHost>) => {
+    if (groupUpper === 'TODOS') return true;
+    if (groupUpper === 'WINDOWS') return info.osType.toUpperCase() === 'WINDOWS';
+    if (groupUpper === 'LINUX') return info.osType.toUpperCase() === 'LINUX';
+    if (groupUpper === 'DATABASE') return info.isDatabase;
+    return true;
+  };
+
+  const parseVal = (res: any[]) => res[0]?.value[1] ? parseFloat(res[0].value[1]) : 0;
+
+  // 2. Consultas por instancia según el grupo seleccionado
+  const queryLinux = groupUpper === 'TODOS' || groupUpper === 'LINUX' || groupUpper === 'DATABASE';
+  const queryWindows = groupUpper === 'TODOS' || groupUpper === 'WINDOWS' || groupUpper === 'DATABASE';
+
+  const [
+    resCpuLinux,
+    resCpuWin,
+    resMemLinux,
+    resMemWin,
+    resDiskLinux,
+    resDiskWin,
+    resNetLinux,
+    resNetWin
+  ] = await Promise.all([
+    queryLinux ? queryPrometheus('100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)') : Promise.resolve([]),
+    queryWindows ? queryPrometheus('100 - (avg by (instance) (rate(windows_cpu_time_total{mode="idle"}[5m])) * 100)') : Promise.resolve([]),
+    queryLinux ? queryPrometheus('100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100)') : Promise.resolve([]),
+    queryWindows ? queryPrometheus('100 - (windows_memory_physical_free_bytes / windows_memory_physical_total_bytes * 100)') : Promise.resolve([]),
+    queryLinux ? queryPrometheus('100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100)') : Promise.resolve([]),
+    queryWindows ? queryPrometheus('100 - (windows_logical_disk_free_bytes / windows_logical_disk_size_bytes * 100)') : Promise.resolve([]),
+    queryLinux ? queryPrometheus('rate(node_network_transmit_bytes_total[5m]) * 8 / 1024 / 1024') : Promise.resolve([]),
+    queryWindows ? queryPrometheus('rate(windows_net_bytes_sent_total[5m]) * 8 / 1024 / 1024') : Promise.resolve([])
+  ]);
+
+  // Unificar mapas por instancia
+  const memMap = new Map<string, number>();
+  [...resMemLinux, ...resMemWin].forEach(r => memMap.set(r.metric.instance, parseVal([r])));
+
+  const diskMap = new Map<string, number>();
+  [...resDiskLinux, ...resDiskWin].forEach(r => diskMap.set(r.metric.instance, parseVal([r])));
+
+  const netMap = new Map<string, number>();
+  [...resNetLinux, ...resNetWin].forEach(r => netMap.set(r.metric.instance, parseVal([r])));
+
+  // Compilar lista de hosts que reportan métricas
+  const allInstancesMap = new Map<string, any>();
+  const addCpuResults = (results: any[]) => {
+    results.forEach(r => {
+      const inst = r.metric.instance;
+      const info = classifyHost(inst);
+      if (matchesGroup(info)) {
+        const cpu = parseVal([r]);
+        const mem = memMap.get(inst) || 0;
+        const disk = diskMap.get(inst) || 0;
+        const net = netMap.get(inst) || 0;
+        const isWarning = cpu > 80 || mem > 85;
+
+        allInstancesMap.set(inst, {
+          host: info.hostname,
+          ip: info.ip,
+          osType: info.osType,
+          role: info.serverRole,
+          cpu: Math.round(cpu),
+          mem: Math.round(mem),
+          disk: Math.round(disk),
+          traf: `${net.toFixed(1)} Mbps`,
+          status: isWarning ? "ADVERTENCIA" : "OK",
+          statusColor: isWarning ? "warning" : "success",
+          rawCpu: cpu,
+          rawMem: mem,
+          rawDisk: disk
+        });
+      }
+    });
+  };
+
+  addCpuResults(resCpuLinux);
+  addCpuResults(resCpuWin);
+
+  const matchedHosts = Array.from(allInstancesMap.values());
+  const topHosts = [...matchedHosts]
+    .sort((a, b) => b.cpu - a.cpu)
+    .slice(0, 5);
+
+  // 3. Cálculo matemático de KPIs Globales según el Grupo seleccionado
+  const totalHostsCount = matchedHosts.length > 0 
+    ? matchedHosts.length 
+    : dbHosts.filter(h => {
+        const info = {
+          rawHost: h.hostname,
+          port: '',
+          hostname: h.hostname,
+          ip: h.ip_address,
+          osType: h.os_type || 'Linux',
+          serverRole: h.server_role || '',
+          isDatabase: (h.server_role || '').toLowerCase().includes('db') || (h.server_role || '').toLowerCase().includes('database'),
+          dbMatch: h
+        };
+        return matchesGroup(info);
+      }).length;
+
+  const avgOf = (arr: number[]) => arr.length > 0 ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : 0;
+
   const globalKpis = {
-    totalHosts: 0,
-    cpuAvg: 0,
-    memAvg: 0,
-    diskAvg: 0,
+    totalHosts: totalHostsCount,
+    cpuAvg: avgOf(matchedHosts.map(h => h.rawCpu)),
+    memAvg: avgOf(matchedHosts.map(h => h.rawMem)),
+    diskAvg: avgOf(matchedHosts.map(h => h.rawDisk)),
     activeAlerts: 0
   };
 
-  const qHosts = 'count(up{job="node"}) or count(up)';
-  const qCpuAvg = '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 or avg(rate(windows_cpu_time_total{mode="idle"}[5m])) * 100)';
-  const qMemAvg = '100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100 or sum(windows_memory_physical_free_bytes) / sum(windows_memory_physical_total_bytes) * 100)';
-  const qDiskAvg = '100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100 or sum(windows_logical_disk_free_bytes) / sum(windows_logical_disk_size_bytes) * 100)';
-  const qTopHosts = 'topk(5, 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 or avg by (instance) (rate(windows_cpu_time_total{mode="idle"}[5m])) * 100))';
-
-  const [resHosts, resCpu, resMem, resDisk] = await Promise.all([
-    queryPrometheus(qHosts),
-    queryPrometheus(qCpuAvg),
-    queryPrometheus(qMemAvg),
-    queryPrometheus(qDiskAvg)
-  ]);
-
-  const parseVal = (res: any[]) => res[0]?.value[1] ? parseFloat(res[0].value[1]) : 0;
-  globalKpis.totalHosts = Math.round(parseVal(resHosts));
-  globalKpis.cpuAvg = parseFloat(parseVal(resCpu).toFixed(1));
-  globalKpis.memAvg = parseFloat(parseVal(resMem).toFixed(1));
-  globalKpis.diskAvg = parseFloat(parseVal(resDisk).toFixed(1));
-
+  // 4. Filtrado analítico de Alertas según el Grupo
   const alertsList = await fetchActiveAlerts();
-  globalKpis.activeAlerts = alertsList.length;
+  const filteredAlerts = alertsList.filter((a: any) => {
+    const inst = a.labels?.instance || a.labels?.node || '';
+    const info = classifyHost(inst);
+    return matchesGroup(info);
+  });
 
-  const formattedAlerts = alertsList.map((a: any) => {
+  globalKpis.activeAlerts = filteredAlerts.length;
+
+  const formattedAlerts = filteredAlerts.map((a: any) => {
+    const inst = a.labels?.instance || a.labels?.node || 'Unknown';
+    const info = classifyHost(inst);
     return {
       sev: a.labels?.severity?.toUpperCase() || "CRÍTICA",
       sevColor: a.labels?.severity === "warning" ? "warning" : "danger",
-      host: a.labels?.instance || a.labels?.node || "Unknown",
-      ip: a.labels?.instance?.split(':')[0] || "",
+      host: info.hostname,
+      ip: info.ip,
+      osType: info.osType,
       metric: a.labels?.alertname?.toUpperCase() || "ALERTA",
       desc: a.annotations?.description || a.annotations?.summary || "Sin descripción",
       val: "N/A",
@@ -317,53 +472,41 @@ export async function getInfrastructureDashboardData(grupo = 'TODOS', periodo = 
     };
   });
 
+  // 5. Histórico temporal (Gráficas) filtrado por Grupo
+  let qCpuRange = '';
+  let qMemRange = '';
+  let qDiskRange = '';
+  let qNetIn = '';
+  let qNetOut = '';
+  let qIopsR = '';
+  let qIopsW = '';
 
-
-  const resTopHosts = await queryPrometheus(qTopHosts);
-
-  const qMemByInstance = '100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 or windows_memory_physical_free_bytes / windows_memory_physical_total_bytes * 100)';
-  const qDiskByInstance = '100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100 or windows_logical_disk_free_bytes / windows_logical_disk_size_bytes * 100)';
-  const qNetOutByInstance = '(rate(node_network_transmit_bytes_total[5m]) or rate(windows_net_bytes_sent_total[5m])) * 8 / 1024 / 1024';
-
-  const [resMemInst, resDiskInst, resNetInst] = await Promise.all([
-    queryPrometheus(qMemByInstance),
-    queryPrometheus(qDiskByInstance),
-    queryPrometheus(qNetOutByInstance)
-  ]);
-
-  const memMap = new Map(resMemInst.map(r => [r.metric.instance, parseVal([r])]));
-  const diskMap = new Map(resDiskInst.map(r => [r.metric.instance, parseVal([r])]));
-  const netMap = new Map(resNetInst.map(r => [r.metric.instance, parseVal([r])]));
-
-  const topHosts = resTopHosts.map(r => {
-    const inst = r.metric.instance;
-    const cpu = parseVal([r]);
-    const mem = memMap.get(inst) || 0;
-    const disk = diskMap.get(inst) || 0;
-    const net = netMap.get(inst) || 0;
-    
-    const isWarning = cpu > 80 || mem > 85;
-
-    return {
-      host: inst?.split(':')[0] || "Host",
-      ip: inst?.split(':')[0] || "",
-      cpu: Math.round(cpu),
-      mem: Math.round(mem),
-      disk: Math.round(disk),
-      traf: `${net.toFixed(1)} Mbps`,
-      status: isWarning ? "ADVERTENCIA" : "OK",
-      statusColor: isWarning ? "warning" : "success"
-    };
-  });
-
-
-  const qCpuRange = '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 or avg(rate(windows_cpu_time_total{mode="idle"}[5m])) * 100)';
-  const qMemRange = '100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100 or sum(windows_memory_physical_free_bytes) / sum(windows_memory_physical_total_bytes) * 100)';
-  const qDiskRange = '100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100 or sum(windows_logical_disk_free_bytes) / sum(windows_logical_disk_size_bytes) * 100)';
-  const qNetIn = '(sum(rate(node_network_receive_bytes_total[5m])) or sum(rate(windows_net_bytes_received_total[5m]))) * 8 / 1024 / 1024';
-  const qNetOut = '(sum(rate(node_network_transmit_bytes_total[5m])) or sum(rate(windows_net_bytes_sent_total[5m]))) * 8 / 1024 / 1024';
-  const qIopsRead = 'sum(rate(node_disk_reads_completed_total[5m])) or sum(rate(windows_logical_disk_reads_total[5m]))';
-  const qIopsWrite = 'sum(rate(node_disk_writes_completed_total[5m])) or sum(rate(windows_logical_disk_writes_total[5m]))';
+  if (groupUpper === 'WINDOWS') {
+    qCpuRange = '100 - (avg(rate(windows_cpu_time_total{mode="idle"}[5m])) * 100)';
+    qMemRange = '100 - (sum(windows_memory_physical_free_bytes) / sum(windows_memory_physical_total_bytes) * 100)';
+    qDiskRange = '100 - (sum(windows_logical_disk_free_bytes) / sum(windows_logical_disk_size_bytes) * 100)';
+    qNetIn = 'sum(rate(windows_net_bytes_received_total[5m])) * 8 / 1024 / 1024';
+    qNetOut = 'sum(rate(windows_net_bytes_sent_total[5m])) * 8 / 1024 / 1024';
+    qIopsR = 'sum(rate(windows_logical_disk_reads_total[5m]))';
+    qIopsW = 'sum(rate(windows_logical_disk_writes_total[5m]))';
+  } else if (groupUpper === 'LINUX') {
+    qCpuRange = '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)';
+    qMemRange = '100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100)';
+    qDiskRange = '100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100)';
+    qNetIn = 'sum(rate(node_network_receive_bytes_total[5m])) * 8 / 1024 / 1024';
+    qNetOut = 'sum(rate(node_network_transmit_bytes_total[5m])) * 8 / 1024 / 1024';
+    qIopsR = 'sum(rate(node_disk_reads_completed_total[5m]))';
+    qIopsW = 'sum(rate(node_disk_writes_completed_total[5m]))';
+  } else {
+    // TODOS o DATABASE
+    qCpuRange = '(100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) + 100 - (avg(rate(windows_cpu_time_total{mode="idle"}[5m])) * 100)) / 2 or 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) or 100 - (avg(rate(windows_cpu_time_total{mode="idle"}[5m])) * 100)';
+    qMemRange = '(100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100) + 100 - (sum(windows_memory_physical_free_bytes) / sum(windows_memory_physical_total_bytes) * 100)) / 2 or 100 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) * 100) or 100 - (sum(windows_memory_physical_free_bytes) / sum(windows_memory_physical_total_bytes) * 100)';
+    qDiskRange = '(100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100) + 100 - (sum(windows_logical_disk_free_bytes) / sum(windows_logical_disk_size_bytes) * 100)) / 2 or 100 - (sum(node_filesystem_avail_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}) * 100) or 100 - (sum(windows_logical_disk_free_bytes) / sum(windows_logical_disk_size_bytes) * 100)';
+    qNetIn = '(sum(rate(node_network_receive_bytes_total[5m])) + sum(rate(windows_net_bytes_received_total[5m]))) * 8 / 1024 / 1024 or sum(rate(node_network_receive_bytes_total[5m])) * 8 / 1024 / 1024 or sum(rate(windows_net_bytes_received_total[5m])) * 8 / 1024 / 1024';
+    qNetOut = '(sum(rate(node_network_transmit_bytes_total[5m])) + sum(rate(windows_net_bytes_sent_total[5m]))) * 8 / 1024 / 1024 or sum(rate(node_network_transmit_bytes_total[5m])) * 8 / 1024 / 1024 or sum(rate(windows_net_bytes_sent_total[5m])) * 8 / 1024 / 1024';
+    qIopsR = '(sum(rate(node_disk_reads_completed_total[5m])) + sum(rate(windows_logical_disk_reads_total[5m]))) or sum(rate(node_disk_reads_completed_total[5m])) or sum(rate(windows_logical_disk_reads_total[5m]))';
+    qIopsW = '(sum(rate(node_disk_writes_completed_total[5m])) + sum(rate(windows_logical_disk_writes_total[5m]))) or sum(rate(node_disk_writes_completed_total[5m])) or sum(rate(windows_logical_disk_writes_total[5m]))';
+  }
 
   const [rangeCpu, rangeMem, rangeDisk, rangeNetIn, rangeNetOut, rangeIopsR, rangeIopsW] = await Promise.all([
     queryRangePrometheus(qCpuRange, start, end, step),
@@ -371,8 +514,8 @@ export async function getInfrastructureDashboardData(grupo = 'TODOS', periodo = 
     queryRangePrometheus(qDiskRange, start, end, step),
     queryRangePrometheus(qNetIn, start, end, step),
     queryRangePrometheus(qNetOut, start, end, step),
-    queryRangePrometheus(qIopsRead, start, end, step),
-    queryRangePrometheus(qIopsWrite, start, end, step)
+    queryRangePrometheus(qIopsR, start, end, step),
+    queryRangePrometheus(qIopsW, start, end, step)
   ]);
 
   const timeMap = new Map<number, any>();
@@ -404,6 +547,11 @@ export async function getInfrastructureDashboardData(grupo = 'TODOS', periodo = 
   const sparkMem = sparkPoints.map(p => ({ v: p.Memoria || 0 }));
   const sparkDisk = sparkPoints.map(p => ({ v: p.Disco || 0 }));
 
+  const grupoLabel = groupUpper === 'WINDOWS' ? 'Servidores Windows' : 
+                     groupUpper === 'LINUX' ? 'Servidores Linux' : 
+                     groupUpper === 'DATABASE' ? 'Bases de Datos' : 
+                     'Todos los sistemas';
+
   return {
     globalKpis,
     topHosts,
@@ -411,7 +559,8 @@ export async function getInfrastructureDashboardData(grupo = 'TODOS', periodo = 
     timeSeriesData,
     sparkCpu,
     sparkMem,
-    sparkDisk
+    sparkDisk,
+    grupoLabel
   };
 }
 

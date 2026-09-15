@@ -131,7 +131,7 @@ export default function InfraestructuraPage() {
               <div className="text-3xl font-bold text-vepagos-navy leading-none">{data.globalKpis.totalHosts}</div>
             </div>
           </div>
-          <div className="text-[10px] text-gray-400 text-center uppercase tracking-widest mt-2">Todos los sistemas</div>
+          <div className="text-[10px] text-gray-400 text-center uppercase tracking-widest mt-2">{data.grupoLabel || (grupo === 'WINDOWS' ? 'Servidores Windows' : grupo === 'LINUX' ? 'Servidores Linux' : grupo === 'DATABASE' ? 'Bases de Datos' : 'Todos los sistemas')}</div>
         </Card>
 
         {/* CPU */}
@@ -270,11 +270,26 @@ export default function InfraestructuraPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {data.topHosts.map((host: any, i: number) => (
+                {data.topHosts.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-gray-400">
+                      No hay servidores activos en el grupo seleccionado ({grupo === 'WINDOWS' ? 'Windows' : grupo === 'LINUX' ? 'Linux' : grupo === 'DATABASE' ? 'Bases de Datos' : grupo})
+                    </td>
+                  </tr>
+                ) : data.topHosts.map((host: any, i: number) => (
                   <tr key={i}>
                     <td className="py-2">
                       <div className="font-bold text-vepagos-navy truncate w-24 md:w-32" title={host.host}>{host.host}</div>
-                      <div className="text-gray-400">{host.ip}</div>
+                      <div className="text-gray-400 flex items-center space-x-1 text-[9px]">
+                        <span>{host.ip}</span>
+                        {host.osType && (
+                          <span className={`px-1 rounded text-[8px] font-semibold ${
+                            host.osType.toLowerCase() === 'windows' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
+                          }`}>
+                            {host.osType}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2 text-center text-vepagos-navy font-bold">{host.cpu}%</td>
                     <td className="py-2 text-center text-vepagos-navy font-bold">{host.mem}%</td>
@@ -316,7 +331,16 @@ export default function InfraestructuraPage() {
                   <td className="py-3 px-2"><Badge variant={alert.sevColor as any}>{alert.sev}</Badge></td>
                   <td className="py-3 px-2">
                     <div className="font-bold text-vepagos-navy truncate w-32" title={alert.host}>{alert.host}</div>
-                    <div className="text-[10px] text-gray-400">{alert.ip}</div>
+                    <div className="text-[10px] text-gray-400 flex items-center space-x-1">
+                      <span>{alert.ip}</span>
+                      {alert.osType && (
+                        <span className={`px-1 rounded text-[8px] font-semibold ${
+                          alert.osType.toLowerCase() === 'windows' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
+                        }`}>
+                          {alert.osType}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 px-2 font-bold text-vepagos-navy truncate max-w-xs">{alert.metric}</td>
                   <td className="py-3 px-2 text-gray-500 max-w-sm truncate" title={alert.desc}>{alert.desc}</td>
