@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,8 +27,9 @@ import {
 
 // initialAlertsList is replaced by dynamic fetch
 
-export default function AlertasActivasPage() {
+function AlertasActivasContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [alertsList, setAlertsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isResolving, setIsResolving] = useState(false);
@@ -43,6 +44,14 @@ export default function AlertasActivasPage() {
   const [filterSev, setFilterSev] = useState("TODAS");
   const [filterStatus, setFilterStatus] = useState("ACTIVA");
   const [filterSource, setFilterSource] = useState("TODAS");
+
+  // Leer source de la URL si viene especificado (ej: ?source=PROMETHEUS)
+  useEffect(() => {
+    const src = searchParams.get("source");
+    if (src) {
+      setFilterSource(src.toUpperCase());
+    }
+  }, [searchParams]);
 
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -589,5 +598,13 @@ Fuente: ${alert.source}`;
         </div>, document.body
       )}
     </div>
+  );
+}
+
+export default function AlertasActivasPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs font-bold text-gray-400">Cargando alertas activas...</div>}>
+      <AlertasActivasContent />
+    </Suspense>
   );
 }

@@ -445,20 +445,62 @@ export async function getInfrastructureDashboardData(grupo = 'TODOS', periodo = 
     activeAlerts: 0
   };
 
-  // 4. Filtrado analítico de Alertas según el Grupo
+  // 4. Filtrado analítico de Alertas según el Grupo (Opción A: Híbrido Tiempo Real + Historial Reciente)
   const alertsList = await fetchActiveAlerts();
-  const filteredAlerts = alertsList.filter((a: any) => {
+  const filteredActiveAlerts = alertsList.filter((a: any) => {
     const inst = a.labels?.instance || a.labels?.node || '';
     const info = classifyHost(inst);
     return matchesGroup(info);
   });
 
-  globalKpis.activeAlerts = filteredAlerts.length;
+  const formattedAlerts: any[] = [];
+  const seenServiceIds = new Set<string>();
 
-  const formattedAlerts = filteredAlerts.map((a: any) => {
+  // 4.1. Mapear alertas en tiempo real de Prometheus si las hay
+  for (const a of filteredActiveAlerts) {
     const inst = a.labels?.instance || a.labels?.node || 'Unknown';
     const info = classifyHost(inst);
-    return {
+
+    let durStr = "Activa";
+    if (a.activeAt) {
+      const startMs = new Date(a.activeAt).getTime();
+      if (!isNaN(startMs)) {
+        const diffMs = Math.max(0, Date.now() - startMs);
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHrs = Math.floor(diffMins / 60);
+        const remMins = diffMins % 60;
+        durStr = diffHrs > 0 ? `${diffHrs}h ${remMins}m` : `${diffMins}m`;
+      }
+    }
+
+    const dateFormatted = a.activeAt 
+      ? new Date(a.activeAt).toLocaleString('es-VE', { 
+          day: '2-digit', 
+          month: 'short', 
+          year: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit',
+          timeZone: 'America/Caracas'
+        })
+      : "Reciente";
+
+    let valStr = "N/A";
+    if (a.value !== undefined && a.value !== null) {
+      const numVal = parseFloat(a.value);
+      valStr = !isNaN(numVal) ? `${numVal.toFixed(1)}%` : String(a.value);
+    } else if (a.labels?.alertname === 'InstanceDown') {
+      valStr = "0 (Down)";
+    }
+
+    const serviceKey = `prom-${a.labels?.alertname || 'alert'}-${inst}`;
+    seenServiceIds.add(serviceKey);
+
+    const id = `prom-${a.labels?.alertname || 'alert'}-${info.ip || info.hostname}-${a.activeAt ? new Date(a.activeAt).getTime() : Math.random().toString(36).substring(7)}`;
+
+    formattedAlerts.push({
+      id,
+      status: "ACTIVA",
+      isLive: true,
       sev: a.labels?.severity?.toUpperCase() || "CRÍTICA",
       sevColor: a.labels?.severity === "warning" ? "warning" : "danger",
       host: info.hostname,
@@ -466,11 +508,94 @@ export async function getInfrastructureDashboardData(grupo = 'TODOS', periodo = 
       osType: info.osType,
       metric: a.labels?.alertname?.toUpperCase() || "ALERTA",
       desc: a.annotations?.description || a.annotations?.summary || "Sin descripción",
-      val: "N/A",
-      date: a.activeAt ? new Date(a.activeAt).toLocaleString() : "Reciente",
-      dur: "Activa"
-    };
-  });
+      summary: a.annotations?.summary || a.annotations?.description || "Alerta de infraestructura",
+      val: valStr,
+      date: dateFormatted,
+      dur: durStr,
+      labels: a.labels || {},
+      annotations: a.annotations || {},
+      rawActiveAt: a.activeAt || ''
+    });
+  }
+
+  // 4.2. Consultar historial reciente de la base de datos (alert_incident_history de Prometheus)
+  try {
+    const historyRes = await query(`
+      SELECT incident_id, service_id, service_name, metric_trigger, severity, current_status, technical_detail, triggered_at, resolved_at 
+      FROM alert_incident_history 
+      WHERE service_id LIKE 'prom-%' 
+      ORDER BY triggered_at DESC 
+      LIMIT 15
+    `);
+
+    for (const row of historyRes.rows) {
+      // Si la alerta activa ya está en la lista de tiempo real, no duplicar
+      if (seenServiceIds.has(row.service_id) && row.current_status === 'ACTIVA') {
+        continue;
+      }
+
+      const inst = row.service_name || row.service_id.replace(/^prom-[^-]+-/, '') || 'Unknown';
+      const info = classifyHost(inst);
+
+      if (!matchesGroup(info)) continue;
+
+      const start = new Date(row.triggered_at);
+      const end = row.resolved_at ? new Date(row.resolved_at) : new Date();
+      const diffMs = Math.max(0, end.getTime() - start.getTime());
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHrs = Math.floor(diffMins / 60);
+      const remMins = diffMins % 60;
+      const durStr = diffHrs > 0 ? `${diffHrs}h ${remMins}m` : `${diffMins}m`;
+
+      const dateFormatted = start.toLocaleString('es-VE', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Caracas'
+      });
+
+      let valStr = "N/A";
+      if (row.metric_trigger === 'InstanceDown') valStr = "0 (Down)";
+      else if (row.metric_trigger === 'ServiceUnreachable') valStr = "0 (Timeout)";
+
+      const isCritical = row.severity === 'CRITICAL';
+      const isWarning = row.severity === 'WARNING';
+
+      formattedAlerts.push({
+        id: row.incident_id,
+        status: row.current_status || 'ACTIVA',
+        isLive: false,
+        sev: isCritical ? 'CRÍTICA' : (isWarning ? 'ADVERTENCIA' : 'INFORMATIVO'),
+        sevColor: isCritical ? 'danger' : (isWarning ? 'warning' : 'info'),
+        host: info.hostname,
+        ip: info.ip,
+        osType: info.osType,
+        metric: row.metric_trigger?.toUpperCase() || 'ALERTA',
+        desc: row.technical_detail || 'Incidente registrado en infraestructura',
+        summary: `Incidente ${row.current_status?.toLowerCase()} en ${info.hostname}`,
+        val: valStr,
+        date: dateFormatted,
+        dur: durStr,
+        resolvedAt: row.resolved_at ? new Date(row.resolved_at).toLocaleString('es-VE', { timeZone: 'America/Caracas' }) : null,
+        labels: {
+          service_id: row.service_id,
+          metric_trigger: row.metric_trigger,
+          instance: inst,
+          status: row.current_status
+        },
+        annotations: {
+          technical_detail: row.technical_detail
+        },
+        rawActiveAt: row.triggered_at
+      });
+    }
+  } catch (err) {
+    console.warn('[getInfrastructureMetrics] Error al obtener historial de alertas:', err);
+  }
+
+  globalKpis.activeAlerts = formattedAlerts.filter(a => a.status === 'ACTIVA').length;
 
   // 5. Histórico temporal (Gráficas) filtrado por Grupo
   let qCpuRange = '';
