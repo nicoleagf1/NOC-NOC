@@ -17,6 +17,11 @@ const barlowCondensed = Barlow_Condensed({
 export const metadata: Metadata = {
   title: "NOC-NOC | Dashboard Vepagos",
   description: "Sistema Centralizado de Monitoreo NOC-NOC para Vepagos",
+  icons: {
+    icon: "/isotipo-green.png",
+    shortcut: "/isotipo-green.png",
+    apple: "/isotipo-green.png",
+  },
 };
 
 export default function RootLayout({
