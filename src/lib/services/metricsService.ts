@@ -737,8 +737,102 @@ export async function getNetworkDashboardData(periodo = '24h') {
     activeInterfacesCount
   };
 
-  // Traer las métricas de las WAN usando la función existente
-  const wanData = await getFortigateWanMetrics();
+  // Traer umbrales configurados para cada proveedor WAN
+  const thresholdsConfig = await getNetworkThresholdsConfig();
+
+  // Traer las métricas actuales de las WANs
+  const rawWanData = await getFortigateWanMetrics();
+
+  // Evaluación de estabilidad y saturación por proveedor
+  const evaluateWanLink = (providerKey: 'netuno' | 'digitel', interfaceName: string) => {
+    const raw = rawWanData[providerKey] || { rxMbps: 0, txMbps: 0, isUp: false };
+    const conf = thresholdsConfig.providers?.[providerKey] || {
+      name: providerKey === 'netuno' ? 'Netuno (wan1)' : 'Digitel (wan2)',
+      interface: interfaceName,
+      minMbps: providerKey === 'netuno' ? 15.0 : 10.0,
+      maxCapacityMbps: providerKey === 'netuno' ? 100.0 : 50.0,
+      saturationThresholdPercent: 90
+    };
+
+    const minMbps = Number(conf.minMbps) || 10;
+    const maxCapacityMbps = Number(conf.maxCapacityMbps) || 100;
+    const saturationPercent = Number(conf.saturationThresholdPercent) || 90;
+    const saturationMbps = Number((maxCapacityMbps * (saturationPercent / 100)).toFixed(2));
+    const usagePercent = maxCapacityMbps > 0 ? Number(((raw.rxMbps / maxCapacityMbps) * 100).toFixed(1)) : 0;
+
+    let status: 'ESTABLE' | 'INESTABLE_DEGRADADO' | 'INESTABLE_SATURADO' | 'CAIDO' = 'ESTABLE';
+    let statusLabel = 'Estable';
+    let statusSeverity: 'success' | 'warning' | 'danger' = 'success';
+    let alertMessage: string | null = null;
+
+    if (!raw.isUp) {
+      status = 'CAIDO';
+      statusLabel = 'Enlace Caído';
+      statusSeverity = 'danger';
+      alertMessage = `El enlace ${conf.name} no detecta portadora (Down).`;
+    } else if (thresholdsConfig.enabled && raw.rxMbps >= saturationMbps && saturationMbps > 0) {
+      status = 'INESTABLE_SATURADO';
+      statusLabel = 'Saturado';
+      statusSeverity = 'warning';
+      alertMessage = `Consumo de navegación en ${raw.rxMbps} Mbps supera el umbral de saturación (${saturationMbps} Mbps / ${saturationPercent}%).`;
+    } else if (thresholdsConfig.enabled && raw.rxMbps < minMbps) {
+      status = 'INESTABLE_DEGRADADO';
+      statusLabel = 'Conexión Inestable';
+      statusSeverity = 'warning';
+      alertMessage = `Navegación en ${raw.rxMbps} Mbps por debajo del umbral mínimo de servicio (${minMbps} Mbps).`;
+    }
+
+    return {
+      name: conf.name,
+      interface: interfaceName,
+      rxMbps: raw.rxMbps,
+      txMbps: raw.txMbps,
+      isUp: raw.isUp,
+      thresholds: {
+        minMbps,
+        maxCapacityMbps,
+        saturationThresholdPercent: saturationPercent,
+        saturationMbps
+      },
+      usagePercent,
+      status,
+      statusLabel,
+      statusSeverity,
+      alertMessage
+    };
+  };
+
+  const wanData = {
+    netuno: evaluateWanLink('netuno', 'wan1'),
+    digitel: evaluateWanLink('digitel', 'wan2')
+  };
+
+  // Avisos activos de inestabilidad para el dashboard
+  const networkAlerts: any[] = [];
+  if (wanData.netuno.status !== 'ESTABLE') {
+    networkAlerts.push({
+      id: 'alert-wan-netuno',
+      provider: 'netuno',
+      providerName: wanData.netuno.name,
+      status: wanData.netuno.status,
+      statusLabel: wanData.netuno.statusLabel,
+      severity: wanData.netuno.statusSeverity,
+      rxMbps: wanData.netuno.rxMbps,
+      message: wanData.netuno.alertMessage
+    });
+  }
+  if (wanData.digitel.status !== 'ESTABLE') {
+    networkAlerts.push({
+      id: 'alert-wan-digitel',
+      provider: 'digitel',
+      providerName: wanData.digitel.name,
+      status: wanData.digitel.status,
+      statusLabel: wanData.digitel.statusLabel,
+      severity: wanData.digitel.statusSeverity,
+      rxMbps: wanData.digitel.rxMbps,
+      message: wanData.digitel.alertMessage
+    });
+  }
 
   // Histórico para el AreaChart de las WANs
   const qRxWan1 = 'rate(fortigate_interface_receive_bytes_total{name="wan1"}[5m]) * 8 / 1000000';
@@ -783,6 +877,43 @@ export async function getNetworkDashboardData(periodo = '24h') {
   return {
     kpis,
     wanData,
+    thresholdsConfig,
+    networkAlerts,
     timeSeriesData
+  };
+}
+
+export async function getNetworkThresholdsConfig() {
+  try {
+    const res = await query(
+      `SELECT value FROM system_settings WHERE key = 'network_alert_thresholds'`
+    );
+    if (res.rows.length > 0 && res.rows[0].value) {
+      const val = typeof res.rows[0].value === 'string'
+        ? JSON.parse(res.rows[0].value)
+        : res.rows[0].value;
+      return val;
+    }
+  } catch (err) {
+    console.warn('[metricsService] could not load network_alert_thresholds:', err);
+  }
+  return {
+    enabled: true,
+    providers: {
+      netuno: {
+        name: 'Netuno (wan1)',
+        interface: 'wan1',
+        minMbps: 15.0,
+        maxCapacityMbps: 100.0,
+        saturationThresholdPercent: 90
+      },
+      digitel: {
+        name: 'Digitel (wan2)',
+        interface: 'wan2',
+        minMbps: 10.0,
+        maxCapacityMbps: 50.0,
+        saturationThresholdPercent: 90
+      }
+    }
   };
 }
