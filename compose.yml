@@ -9,8 +9,7 @@ services:
     env_file:
       - .env
     restart: unless-stopped
-    cap_add:
-      - SYS_ADMIN
+    privileged: true
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
