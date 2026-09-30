@@ -17,6 +17,7 @@ import { Client as SSHClient } from 'ssh2';
 import * as mssql from 'mssql';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import * as zlib from 'zlib';
 import { ZipArchive } from 'archiver';
 import { Readable } from 'stream';
@@ -85,8 +86,9 @@ function ensureDir(dirPath: string): void {
 }
 
 /**
- * Si el job tiene credenciales NAS, monta el share de red con `net use` antes de acceder.
- * Esto es necesario cuando la carpeta compartida requiere autenticación con usuario/contraseña.
+ * Si el job tiene credenciales NAS, monta el share de red según la plataforma:
+ * - Windows: `net use`
+ * - Linux:   `mount -t cifs` (requiere cifs-utils instalado en el contenedor)
  */
 async function ensureNasAccess(job: BackupJob): Promise<void> {
   if (!job.nas_username || !job.nas_password_encrypted) return;
@@ -94,27 +96,57 @@ async function ensureNasAccess(job: BackupJob): Promise<void> {
   if (!destPath.startsWith('\\\\')) return; // Solo aplica a rutas UNC
 
   const nasPassword = decrypt(job.nas_password_encrypted);
-  // Extraer el share raíz (\\server\share) de la ruta completa
+  const isWin = os.platform() === 'win32';
   const shareParts = destPath.replace(/\\\\/g, '/').replace(/^\/\//, '').split('/');
-  const shareRoot = `\\\\${shareParts[0]}\\${shareParts[1] || ''}`;
+  const server = shareParts[0];
+  const share = shareParts[1] || '';
 
   try {
     const { execSync } = await import('child_process');
-    // Desconectar sesión previa si existe
-    try {
-      execSync(`net use "${shareRoot}" /delete /y 2>nul`, { timeout: 10000, windowsHide: true });
-    } catch { /* ignorar si no existía */ }
 
-    // Montar con credenciales
-    execSync(`net use "${shareRoot}" /user:"${job.nas_username}" "${nasPassword}"`, {
-      timeout: 15000,
-      windowsHide: true,
-    });
-    console.log(`[NAS] Ruta de red montada con credenciales: ${shareRoot} (usuario: ${job.nas_username})`);
+    if (isWin) {
+      const shareRoot = `\\\\${server}\\${share}`;
+      try { execSync(`net use "${shareRoot}" /delete /y 2>nul`, { timeout: 10000, windowsHide: true }); } catch { /* ignorar */ }
+      execSync(`net use "${shareRoot}" /user:"${job.nas_username}" "${nasPassword}"`, { timeout: 15000, windowsHide: true });
+      console.log(`[NAS] Montado con net use: ${shareRoot} (usuario: ${job.nas_username})`);
+    } else {
+      // Linux: mount -t cifs
+      const shareRoot = `//${server}/${share}`;
+      const mountPoint = `/mnt/nas_${server}_${share}`.replace(/[^a-zA-Z0-9_/]/g, '_');
+      try { fs.mkdirSync(mountPoint, { recursive: true }); } catch { /* ignorar */ }
+      try { execSync(`umount "${mountPoint}" 2>/dev/null`, { timeout: 5000 }); } catch { /* ignorar */ }
+
+      let userPart = job.nas_username;
+      let domainOpt = '';
+      if (job.nas_username.includes('\\')) {
+        const parts = job.nas_username.split('\\');
+        domainOpt = `,domain=${parts[0]}`;
+        userPart = parts[1];
+      }
+
+      execSync(`mount -t cifs "${shareRoot}" "${mountPoint}" -o username="${userPart}",password="${nasPassword}"${domainOpt},iocharset=utf8,file_mode=0777,dir_mode=0777`, { timeout: 15000 });
+      console.log(`[NAS] Montado con mount -t cifs: ${shareRoot} → ${mountPoint} (usuario: ${job.nas_username})`);
+    }
   } catch (err: any) {
     console.warn(`[NAS] No se pudo montar la ruta de red con credenciales: ${err.message}`);
-    // No lanzar error — puede que ya tenga acceso sin net use
+    // No lanzar error — puede que ya tenga acceso sin montar
   }
+}
+
+/**
+ * Resuelve la ruta de destino según la plataforma.
+ * En Linux, traduce rutas UNC (\\server\share\sub) a /mnt/nas_server_share/sub.
+ */
+function resolveDestPath(destPath: string): string {
+  if (os.platform() === 'win32') return destPath;
+  if (!destPath.startsWith('\\\\')) return destPath;
+
+  const parts = destPath.replace(/\\\\/g, '/').replace(/^\/\//, '').split('/');
+  const server = parts[0];
+  const share = parts[1] || '';
+  const subPath = parts.slice(2).join('/');
+  const mountPoint = `/mnt/nas_${server}_${share}`.replace(/[^a-zA-Z0-9_/]/g, '_');
+  return subPath ? `${mountPoint}/${subPath}` : mountPoint;
 }
 
 async function zipFile(sourceFilePath: string, zipFilePath: string, internalName?: string): Promise<void> {
@@ -192,7 +224,7 @@ async function compressAndFinalizeFile(
 
 async function backupMySQL(job: BackupJob): Promise<{ filePath: string; sizeBytes: number }> {
   const fileName = buildFileName(job, '.sql');
-  const destDir = job.destination_path;
+  const destDir = resolveDestPath(job.destination_path);
   await ensureNasAccess(job);
   ensureDir(destDir);
   const rawFilePath = path.join(destDir, fileName);
@@ -304,7 +336,7 @@ async function backupMySQL(job: BackupJob): Promise<{ filePath: string; sizeByte
 
 async function backupMSSQL(job: BackupJob): Promise<{ filePath: string; sizeBytes: number }> {
   const fileName = buildFileName(job, '.bak');
-  const destDir = job.destination_path;
+  const destDir = resolveDestPath(job.destination_path);
   await ensureNasAccess(job);
   ensureDir(destDir);
   const finalFilePath = path.join(destDir, fileName);
@@ -448,7 +480,7 @@ async function backupMSSQL(job: BackupJob): Promise<{ filePath: string; sizeByte
 
 async function backupPostgres(job: BackupJob): Promise<{ filePath: string; sizeBytes: number }> {
   const fileName = buildFileName(job, '.sql');
-  const destDir = job.destination_path;
+  const destDir = resolveDestPath(job.destination_path);
   await ensureNasAccess(job);
   ensureDir(destDir);
   const rawFilePath = path.join(destDir, fileName);
@@ -579,7 +611,7 @@ async function backupPostgres(job: BackupJob): Promise<{ filePath: string; sizeB
 // ──────────────────────────────────────────────────────────────────────────────
 
 async function applyRetentionPolicy(job: BackupJob): Promise<{ deletedCount: number; purgedFiles: string[] }> {
-  const destDir = job.destination_path;
+  const destDir = resolveDestPath(job.destination_path);
   if (!fs.existsSync(destDir)) {
     console.warn(`[Retención] Carpeta de destino no existe o no es accesible: ${destDir}`);
     return { deletedCount: 0, purgedFiles: [] };

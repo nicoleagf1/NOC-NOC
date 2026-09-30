@@ -1,6 +1,68 @@
 import { NextResponse } from 'next/server';
 import * as fs from 'fs';
+import * as os from 'os';
 import { execSync } from 'child_process';
+
+const isWindows = os.platform() === 'win32';
+
+/**
+ * Monta un share de red SMB/CIFS según la plataforma.
+ * - Windows: usa `net use`
+ * - Linux:   usa `mount -t cifs`
+ */
+function mountNetworkShare(sharePath: string, username: string, password: string): void {
+  // Extraer \\server\share del path completo
+  const shareParts = sharePath.replace(/\\\\/g, '/').replace(/^\/\//, '').split('/');
+  const server = shareParts[0];
+  const share = shareParts[1] || '';
+  const shareRoot = isWindows
+    ? `\\\\${server}\\${share}`
+    : `//${server}/${share}`;
+
+  if (isWindows) {
+    try { execSync(`net use "${shareRoot}" /delete /y 2>nul`, { timeout: 10000, windowsHide: true }); } catch { /* ignorar */ }
+    execSync(`net use "${shareRoot}" /user:"${username}" "${password}"`, { timeout: 15000, windowsHide: true });
+  } else {
+    // Linux: montar via mount.cifs (requiere cifs-utils)
+    const mountPoint = `/mnt/nas_${server}_${share}`.replace(/[^a-zA-Z0-9_/]/g, '_');
+    try { fs.mkdirSync(mountPoint, { recursive: true }); } catch { /* ignorar */ }
+
+    // Desmontar si ya estaba montado
+    try { execSync(`umount "${mountPoint}" 2>/dev/null`, { timeout: 5000 }); } catch { /* ignorar */ }
+
+    // Separar dominio\usuario si aplica
+    let userPart = username;
+    let domainPart = '';
+    if (username.includes('\\')) {
+      const parts = username.split('\\');
+      domainPart = parts[0];
+      userPart = parts[1];
+    }
+
+    const domainOpt = domainPart ? `,domain=${domainPart}` : '';
+    const cmd = `mount -t cifs "${shareRoot}" "${mountPoint}" -o username="${userPart}",password="${password}"${domainOpt},iocharset=utf8,file_mode=0777,dir_mode=0777`;
+    execSync(cmd, { timeout: 15000 });
+  }
+}
+
+/**
+ * Resuelve la ruta real del filesystem según la plataforma.
+ * En Linux, traduce rutas UNC (\\server\share\sub) a la ruta montada (/mnt/nas_server_share/sub).
+ */
+function resolveNasPath(targetPath: string): string {
+  if (isWindows) return targetPath;
+
+  // En Linux, traducir \\server\share\subfolder → /mnt/nas_server_share/subfolder
+  if (targetPath.startsWith('\\\\')) {
+    const parts = targetPath.replace(/\\\\/g, '/').replace(/^\/\//, '').split('/');
+    const server = parts[0];
+    const share = parts[1] || '';
+    const subPath = parts.slice(2).join('/');
+    const mountPoint = `/mnt/nas_${server}_${share}`.replace(/[^a-zA-Z0-9_/]/g, '_');
+    return subPath ? `${mountPoint}/${subPath}` : mountPoint;
+  }
+  return targetPath;
+}
 
 /**
  * POST /api/backups/verify-path
@@ -22,43 +84,30 @@ export async function POST(request: Request) {
     const targetPath = destination_path.trim();
     const isUNC = targetPath.startsWith('\\\\');
 
-    // Si es una ruta UNC y se proporcionaron credenciales, intentar montar con net use
+    // Si es una ruta UNC y se proporcionaron credenciales, intentar montar
     if (isUNC && nas_username && nas_password) {
-      // Extraer el share raíz (\\server\share) del path completo
-      const shareParts = targetPath.replace(/\\\\/g, '/').replace(/^\/\//, '').split('/');
-      const shareRoot = `\\\\${shareParts[0]}\\${shareParts[1] || ''}`;
-
       try {
-        // Primero desconectar si ya existía una conexión previa
-        try {
-          execSync(`net use "${shareRoot}" /delete /y 2>nul`, { timeout: 10000, windowsHide: true });
-        } catch {
-          // Ignorar si no existía conexión previa
-        }
-
-        // Conectar con credenciales
-        const cmd = `net use "${shareRoot}" /user:"${nas_username}" "${nas_password}"`;
-        execSync(cmd, { timeout: 15000, windowsHide: true });
-        console.log(`[Verify Path] Ruta de red montada con credenciales: ${shareRoot}`);
+        mountNetworkShare(targetPath, nas_username, nas_password);
+        console.log(`[Verify Path] Ruta de red montada con credenciales (${isWindows ? 'Windows' : 'Linux'})`);
       } catch (mountErr: any) {
         const errMsg = mountErr.stderr?.toString() || mountErr.message || 'Error desconocido';
         return NextResponse.json({
           success: false,
           error: `No se pudo autenticar en la ruta de red: ${errMsg.trim()}`,
-          details: {
-            path: targetPath,
-            authenticated: false,
-          },
+          details: { path: targetPath, authenticated: false },
         });
       }
     }
 
+    // Resolver la ruta según plataforma
+    const resolvedPath = resolveNasPath(targetPath);
+
     // Verificar si la ruta existe y es accesible
     try {
-      const exists = fs.existsSync(targetPath);
+      const exists = fs.existsSync(resolvedPath);
 
       if (exists) {
-        const stat = fs.statSync(targetPath);
+        const stat = fs.statSync(resolvedPath);
 
         if (!stat.isDirectory()) {
           return NextResponse.json({
@@ -69,7 +118,7 @@ export async function POST(request: Request) {
         }
 
         // Intentar escribir un archivo de prueba para verificar permisos de escritura
-        const testFile = `${targetPath}\\.noc_noc_write_test_${Date.now()}.tmp`;
+        const testFile = `${resolvedPath}${isWindows ? '\\' : '/'}.noc_noc_write_test_${Date.now()}.tmp`;
         try {
           fs.writeFileSync(testFile, 'NOC-NOC write test');
           fs.unlinkSync(testFile);
@@ -78,6 +127,7 @@ export async function POST(request: Request) {
             message: 'Ruta accesible con permisos de lectura y escritura',
             details: {
               path: targetPath,
+              resolvedPath,
               readable: true,
               writable: true,
               isUNC,
@@ -88,20 +138,14 @@ export async function POST(request: Request) {
           return NextResponse.json({
             success: false,
             error: 'La ruta es accesible pero NO tiene permisos de escritura',
-            details: {
-              path: targetPath,
-              readable: true,
-              writable: false,
-              isUNC,
-            },
+            details: { path: targetPath, readable: true, writable: false, isUNC },
           });
         }
       } else {
         // Intentar crear la carpeta
         try {
-          fs.mkdirSync(targetPath, { recursive: true });
-          // Verificar que se creó y tiene permisos de escritura
-          const testFile = `${targetPath}\\.noc_noc_write_test_${Date.now()}.tmp`;
+          fs.mkdirSync(resolvedPath, { recursive: true });
+          const testFile = `${resolvedPath}${isWindows ? '\\' : '/'}.noc_noc_write_test_${Date.now()}.tmp`;
           fs.writeFileSync(testFile, 'NOC-NOC write test');
           fs.unlinkSync(testFile);
           return NextResponse.json({
@@ -109,6 +153,7 @@ export async function POST(request: Request) {
             message: 'Carpeta creada exitosamente con permisos de lectura y escritura',
             details: {
               path: targetPath,
+              resolvedPath,
               readable: true,
               writable: true,
               created: true,
