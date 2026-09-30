@@ -71,7 +71,7 @@ const DEFAULT_FORM: JobFormData = {
   schedule_days: [true, true, true, true, true, true, true], // todos los días
   schedule_description: "",
   retention_days: 30,
-  compression_format: "gzip",
+  compression_format: "zip",
   send_alert_on_failure: true,
   notification_email: "",
 };
@@ -178,7 +178,7 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
         schedule_days: days,
         schedule_description: editingJob.schedule_description || "",
         retention_days: editingJob.retention_days || 30,
-        compression_format: editingJob.compression_format || "gzip",
+        compression_format: editingJob.compression_format || "zip",
         send_alert_on_failure: editingJob.send_alert_on_failure ?? true,
         notification_email: editingJob.notification_email || "",
       });
@@ -698,10 +698,11 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
                 <select
                   value={form.compression_format}
                   onChange={e => updateField("compression_format", e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-vepagos-green/50 focus:border-vepagos-green outline-none bg-white"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-vepagos-green/50 focus:border-vepagos-green outline-none bg-white font-medium"
                 >
+                  <option value="zip">ZIP (.zip) — Predeterminado</option>
+                  <option value="7z">7-Zip (.7z) — Máxima compresión</option>
                   <option value="gzip">GZIP (.sql.gz)</option>
-                  <option value="zip">ZIP (.zip)</option>
                   <option value="none">Sin compresión (.sql / .bak)</option>
                 </select>
               </div>

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS backup_jobs (
     cron_schedule VARCHAR(50) NOT NULL DEFAULT '0 1 * * *', -- Diario a la 01:00 AM
     schedule_description VARCHAR(100) DEFAULT 'Diario a la 01:00 AM (cada 24h)',
     retention_days INTEGER NOT NULL DEFAULT 30,
-    compression_format VARCHAR(20) NOT NULL DEFAULT 'gzip' CHECK (compression_format IN ('gzip', 'zip')),
+    compression_format VARCHAR(20) NOT NULL DEFAULT 'zip' CHECK (compression_format IN ('zip', '7z', 'gzip', 'none')),
 
     -- Notificaciones y alertas
     send_alert_on_failure BOOLEAN NOT NULL DEFAULT TRUE,

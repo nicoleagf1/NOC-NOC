@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       cron_schedule || '0 1 * * *',
       schedule_description || 'Diario a la 01:00 AM (cada 24h)',
       retention_days || 30,
-      compression_format || 'gzip',
+      compression_format || 'zip',
       send_alert_on_failure !== false,
       notification_email || null,
     ]);

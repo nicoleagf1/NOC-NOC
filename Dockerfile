@@ -24,6 +24,7 @@ RUN npm run build
 
 # 3. Imagen de producción, copiar solo lo necesario
 FROM base AS runner
+RUN apk add --no-cache libc6-compat p7zip
 WORKDIR /app
 
 ENV NODE_ENV production

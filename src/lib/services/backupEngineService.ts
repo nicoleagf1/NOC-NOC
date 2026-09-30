@@ -21,9 +21,44 @@ import * as zlib from 'zlib';
 import { ZipArchive } from 'archiver';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
+import { spawn } from 'child_process';
 import { backupJobService } from './backupJobService';
 import { decrypt } from '@/lib/security';
 import type { BackupJob } from '@/types/backup';
+
+const sevenZip = require('7zip-bin');
+
+async function sevenZipFile(sourceFilePath: string, sevenZipFilePath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let binPath = sevenZip.path7za;
+    if (!binPath || !fs.existsSync(binPath)) {
+      binPath = '7za';
+    }
+    const p7z = spawn(binPath, ['a', '-t7z', '-mx=6', sevenZipFilePath, sourceFilePath], {
+      windowsHide: true,
+    });
+
+    let stderr = '';
+    p7z.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+
+    p7z.on('close', (code: number) => {
+      if (code === 0) {
+        try {
+          if (fs.existsSync(sourceFilePath) && path.resolve(sourceFilePath) !== path.resolve(sevenZipFilePath)) {
+            fs.unlinkSync(sourceFilePath);
+          }
+        } catch (err) {
+          console.warn(`[sevenZipFile] No se pudo borrar archivo temporal: ${sourceFilePath}`, err);
+        }
+        resolve();
+      } else {
+        reject(new Error(`7-Zip falló con código ${code}: ${stderr}`));
+      }
+    });
+
+    p7z.on('error', (err) => reject(err));
+  });
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Utilidades
@@ -87,7 +122,13 @@ async function compressAndFinalizeFile(
 
   let finalPath = rawFilePath;
 
-  if (compressionFormat === 'zip') {
+  if (compressionFormat === '7z') {
+    const ext = path.extname(rawFilePath);
+    const sevenZipPath = rawFilePath.slice(0, -ext.length) + '.7z';
+    console.log(`[Backup Engine] Comprimiendo a 7-Zip: ${sevenZipPath}`);
+    await sevenZipFile(rawFilePath, sevenZipPath);
+    finalPath = sevenZipPath;
+  } else if (compressionFormat === 'zip') {
     const ext = path.extname(rawFilePath);
     const zipPath = rawFilePath.slice(0, -ext.length) + '.zip';
     console.log(`[Backup Engine] Comprimiendo a ZIP: ${zipPath}`);
@@ -297,7 +338,12 @@ async function backupMSSQL(job: BackupJob): Promise<{ filePath: string; sizeByte
       `;
       await pool.request().query(stagingQuery);
 
-      if (job.compression_format === 'zip') {
+      if (job.compression_format === '7z') {
+        const sevenZipPath = finalFilePath.replace(/\.bak$/, '.7z');
+        console.log(`[MSSQL Backup] Comprimiendo archivo staging a 7-Zip destino: ${sevenZipPath}`);
+        await sevenZipFile(uncStagingSource, sevenZipPath);
+        resultFilePath = sevenZipPath;
+      } else if (job.compression_format === 'zip') {
         const zipPath = finalFilePath.replace(/\.bak$/, '.zip');
         console.log(`[MSSQL Backup] Comprimiendo archivo staging a ZIP destino: ${zipPath}`);
         await zipFile(uncStagingSource, zipPath, fileName);
@@ -326,7 +372,12 @@ async function backupMSSQL(job: BackupJob): Promise<{ filePath: string; sizeByte
       }
     } else {
       // Se ejecutó directo en destino final: si se pidió compresión, comprimir ahora
-      if (job.compression_format === 'zip') {
+      if (job.compression_format === '7z') {
+        const sevenZipPath = finalFilePath.replace(/\.bak$/, '.7z');
+        console.log(`[MSSQL Backup] Comprimiendo backup a 7-Zip: ${sevenZipPath}`);
+        await sevenZipFile(finalFilePath, sevenZipPath);
+        resultFilePath = sevenZipPath;
+      } else if (job.compression_format === 'zip') {
         const zipPath = finalFilePath.replace(/\.bak$/, '.zip');
         console.log(`[MSSQL Backup] Comprimiendo backup a ZIP: ${zipPath}`);
         await zipFile(finalFilePath, zipPath, fileName);
@@ -509,7 +560,7 @@ async function applyRetentionPolicy(job: BackupJob): Promise<{ deletedCount: num
 
   // Nombre de la base de datos normalizado para NO borrar respaldos de otras BD en la misma carpeta compartida
   const safeDbPrefix = job.database_name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  const validExtensions = ['.bak', '.gz', '.zip', '.sql'];
+  const validExtensions = ['.bak', '.gz', '.zip', '.7z', '.sql'];
 
   const purgedFiles: string[] = [];
 

@@ -52,6 +52,39 @@ function formatDateShort(dateStr: string) {
   return `${months[d.getMonth()]} ${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+const DAY_LETTERS = ["D", "L", "M", "M", "J", "V", "S"];
+
+function parseCronSchedule(cron?: string) {
+  if (!cron) return { time: "--:--", days: [true, true, true, true, true, true, true] };
+  const parts = cron.trim().split(/\s+/);
+  const minute = parseInt(parts[0], 10) || 0;
+  const hour = parseInt(parts[1], 10) || 0;
+  const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+
+  let days = [true, true, true, true, true, true, true];
+  if (parts.length >= 5 && parts[4] !== "*") {
+    days = [false, false, false, false, false, false, false];
+    const dayTokens = parts[4].split(",");
+    for (const token of dayTokens) {
+      if (token.includes("-")) {
+        const [start, end] = token.split("-").map((n) => parseInt(n, 10));
+        if (!isNaN(start) && !isNaN(end)) {
+          for (let i = start; i <= end; i++) {
+            if (i >= 0 && i <= 6) days[i] = true;
+            if (i === 7) days[0] = true;
+          }
+        }
+      } else {
+        const num = parseInt(token, 10);
+        if (num >= 0 && num <= 6) days[num] = true;
+        if (num === 7) days[0] = true;
+      }
+    }
+  }
+
+  return { time, days };
+}
+
 export default function RespaldosPage() {
   const [jobs, setJobs] = useState<BackupJob[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -334,15 +367,37 @@ export default function RespaldosPage() {
                       {job.name}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 mt-1 ml-6">
+                  <div className="flex items-center gap-2 mt-1 ml-6 flex-wrap">
                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${ENGINE_COLORS[job.engine] || "text-gray-500 bg-gray-100"}`}>
                       {job.engine.toUpperCase()}
                     </span>
-                    {job.last_backup_date && (
-                      <span className="text-[11px] text-gray-400">
-                        {formatDateShort(job.last_backup_date)}
-                      </span>
-                    )}
+                    {(() => {
+                      const { time, days } = parseCronSchedule(job.cron_schedule);
+                      return (
+                        <div
+                          className="flex items-center gap-1.5 text-xs"
+                          title={job.schedule_description || `Programado a las ${time}`}
+                        >
+                          <span className="font-mono text-[11px] font-semibold text-gray-700">
+                            {time}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 font-mono text-[10px]">
+                            {DAY_LETTERS.map((letter, idx) => (
+                              <span
+                                key={idx}
+                                className={`px-0.5 rounded ${
+                                  days[idx]
+                                    ? "font-extrabold text-emerald-700 bg-emerald-50"
+                                    : "text-gray-300 font-normal"
+                                }`}
+                              >
+                                {letter}
+                              </span>
+                            ))}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   {!job.is_active && (
                     <span className="text-[10px] text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded mt-1 ml-6 inline-block">

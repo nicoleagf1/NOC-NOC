@@ -31,7 +31,7 @@ export interface BackupJob {
   cron_schedule: string;
   schedule_description?: string;
   retention_days: number;
-  compression_format: 'gzip' | 'zip';
+  compression_format: 'zip' | '7z' | 'gzip' | 'none';
 
   // Alertas
   send_alert_on_failure: boolean;
