@@ -38,6 +38,8 @@ export async function POST(request: Request) {
       ssh_password,
       destination_type,
       destination_path,
+      nas_username,
+      nas_password,
       cron_schedule,
       schedule_description,
       retention_days,
@@ -56,18 +58,21 @@ export async function POST(request: Request) {
     // Cifrar contraseñas antes de almacenar
     const encryptedDbPass = db_password ? encrypt(db_password) : null;
     const encryptedSshPass = ssh_password ? encrypt(ssh_password) : null;
+    const encryptedNasPass = nas_password ? encrypt(nas_password) : null;
 
     const sql = `
       INSERT INTO backup_jobs (
         name, engine, host, port, database_name, db_username, db_password_encrypted,
         use_ssh_tunnel, ssh_host, ssh_port, ssh_username, ssh_password_encrypted,
-        destination_type, destination_path, cron_schedule, schedule_description,
+        destination_type, destination_path, nas_username, nas_password_encrypted,
+        cron_schedule, schedule_description,
         retention_days, compression_format, send_alert_on_failure, notification_email
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
         $8, $9, $10, $11, $12,
         $13, $14, $15, $16,
-        $17, $18, $19, $20
+        $17, $18,
+        $19, $20, $21, $22
       )
       RETURNING *;
     `;
@@ -88,6 +93,8 @@ export async function POST(request: Request) {
       encryptedSshPass,
       destination_type || 'nas',
       destination_path || '\\\\192.168.0.27\\SqlResBackupAllDB',
+      nas_username || null,
+      encryptedNasPass,
       cron_schedule || '0 1 * * *',
       schedule_description || 'Diario a la 01:00 AM (cada 24h)',
       retention_days || 30,

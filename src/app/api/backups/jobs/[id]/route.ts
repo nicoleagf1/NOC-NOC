@@ -60,6 +60,8 @@ export async function PUT(
       ssh_password,
       destination_type,
       destination_path,
+      nas_username,
+      nas_password,
       cron_schedule,
       schedule_description,
       retention_days,
@@ -76,6 +78,10 @@ export async function PUT(
     const encryptedSshPass = ssh_password && !isMasked(ssh_password)
       ? encrypt(ssh_password)
       : existing.ssh_password_encrypted;
+
+    const encryptedNasPass = nas_password && !isMasked(nas_password)
+      ? encrypt(nas_password)
+      : existing.nas_password_encrypted;
 
     const sql = `
       UPDATE backup_jobs SET
@@ -94,14 +100,16 @@ export async function PUT(
         ssh_password_encrypted = $13,
         destination_type = COALESCE($14, destination_type),
         destination_path = COALESCE($15, destination_path),
-        cron_schedule = COALESCE($16, cron_schedule),
-        schedule_description = COALESCE($17, schedule_description),
-        retention_days = COALESCE($18, retention_days),
-        compression_format = COALESCE($19, compression_format),
-        send_alert_on_failure = COALESCE($20, send_alert_on_failure),
-        notification_email = $21,
+        nas_username = $16,
+        nas_password_encrypted = $17,
+        cron_schedule = COALESCE($18, cron_schedule),
+        schedule_description = COALESCE($19, schedule_description),
+        retention_days = COALESCE($20, retention_days),
+        compression_format = COALESCE($21, compression_format),
+        send_alert_on_failure = COALESCE($22, send_alert_on_failure),
+        notification_email = $23,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $22
+      WHERE id = $24
       RETURNING *;
     `;
 
@@ -121,6 +129,8 @@ export async function PUT(
       encryptedSshPass,
       destination_type ?? null,
       destination_path ?? null,
+      nas_username ?? null,
+      encryptedNasPass,
       cron_schedule ?? null,
       schedule_description ?? null,
       retention_days ?? null,

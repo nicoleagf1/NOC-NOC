@@ -84,6 +84,39 @@ function ensureDir(dirPath: string): void {
   }
 }
 
+/**
+ * Si el job tiene credenciales NAS, monta el share de red con `net use` antes de acceder.
+ * Esto es necesario cuando la carpeta compartida requiere autenticación con usuario/contraseña.
+ */
+async function ensureNasAccess(job: BackupJob): Promise<void> {
+  if (!job.nas_username || !job.nas_password_encrypted) return;
+  const destPath = job.destination_path;
+  if (!destPath.startsWith('\\\\')) return; // Solo aplica a rutas UNC
+
+  const nasPassword = decrypt(job.nas_password_encrypted);
+  // Extraer el share raíz (\\server\share) de la ruta completa
+  const shareParts = destPath.replace(/\\\\/g, '/').replace(/^\/\//, '').split('/');
+  const shareRoot = `\\\\${shareParts[0]}\\${shareParts[1] || ''}`;
+
+  try {
+    const { execSync } = await import('child_process');
+    // Desconectar sesión previa si existe
+    try {
+      execSync(`net use "${shareRoot}" /delete /y 2>nul`, { timeout: 10000, windowsHide: true });
+    } catch { /* ignorar si no existía */ }
+
+    // Montar con credenciales
+    execSync(`net use "${shareRoot}" /user:"${job.nas_username}" "${nasPassword}"`, {
+      timeout: 15000,
+      windowsHide: true,
+    });
+    console.log(`[NAS] Ruta de red montada con credenciales: ${shareRoot} (usuario: ${job.nas_username})`);
+  } catch (err: any) {
+    console.warn(`[NAS] No se pudo montar la ruta de red con credenciales: ${err.message}`);
+    // No lanzar error — puede que ya tenga acceso sin net use
+  }
+}
+
 async function zipFile(sourceFilePath: string, zipFilePath: string, internalName?: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const output = fs.createWriteStream(zipFilePath);
@@ -160,6 +193,7 @@ async function compressAndFinalizeFile(
 async function backupMySQL(job: BackupJob): Promise<{ filePath: string; sizeBytes: number }> {
   const fileName = buildFileName(job, '.sql');
   const destDir = job.destination_path;
+  await ensureNasAccess(job);
   ensureDir(destDir);
   const rawFilePath = path.join(destDir, fileName);
 
@@ -271,6 +305,7 @@ async function backupMySQL(job: BackupJob): Promise<{ filePath: string; sizeByte
 async function backupMSSQL(job: BackupJob): Promise<{ filePath: string; sizeBytes: number }> {
   const fileName = buildFileName(job, '.bak');
   const destDir = job.destination_path;
+  await ensureNasAccess(job);
   ensureDir(destDir);
   const finalFilePath = path.join(destDir, fileName);
 
@@ -414,6 +449,7 @@ async function backupMSSQL(job: BackupJob): Promise<{ filePath: string; sizeByte
 async function backupPostgres(job: BackupJob): Promise<{ filePath: string; sizeBytes: number }> {
   const fileName = buildFileName(job, '.sql');
   const destDir = job.destination_path;
+  await ensureNasAccess(job);
   ensureDir(destDir);
   const rawFilePath = path.join(destDir, fileName);
 

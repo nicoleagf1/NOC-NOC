@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS backup_jobs (
     -- Destino de almacenamiento
     destination_type VARCHAR(50) NOT NULL DEFAULT 'nas' CHECK (destination_type IN ('nas', 'local', 's3')),
     destination_path TEXT NOT NULL DEFAULT '\\192.168.0.27\SqlResBackupAllDB',
+    nas_username VARCHAR(100),
+    nas_password_encrypted TEXT,
 
     -- Planificación y políticas de retención
     cron_schedule VARCHAR(50) NOT NULL DEFAULT '0 1 * * *', -- Diario a la 01:00 AM

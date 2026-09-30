@@ -26,6 +26,8 @@ export interface BackupJob {
   // Destino
   destination_type: DestinationType;
   destination_path: string;
+  nas_username?: string;
+  nas_password_encrypted?: string;
 
   // Planificación
   cron_schedule: string;

@@ -39,6 +39,8 @@ interface JobFormData {
   ssh_password: string;
   destination_type: string;
   destination_path: string;
+  nas_username: string;
+  nas_password: string;
   // Schedule fields
   schedule_hour: number;
   schedule_minute: number;
@@ -66,6 +68,8 @@ const DEFAULT_FORM: JobFormData = {
   ssh_password: "",
   destination_type: "nas",
   destination_path: "",
+  nas_username: "",
+  nas_password: "",
   schedule_hour: 1,
   schedule_minute: 0,
   schedule_days: [true, true, true, true, true, true, true], // todos los días
@@ -150,6 +154,9 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
   const [discoveredDatabases, setDiscoveredDatabases] = useState<string[]>([]);
   const [showDiscoverPanel, setShowDiscoverPanel] = useState(false);
   const [showSystemDbs, setShowSystemDbs] = useState(false);
+  const [verifyingPath, setVerifyingPath] = useState(false);
+  const [pathVerifyResult, setPathVerifyResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [showNasPassword, setShowNasPassword] = useState(false);
 
   const isEditing = !!editingJob;
 
@@ -173,6 +180,8 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
         ssh_password: "",
         destination_type: editingJob.destination_type || "nas",
         destination_path: editingJob.destination_path || "",
+        nas_username: editingJob.nas_username || "",
+        nas_password: "",
         schedule_hour: hour,
         schedule_minute: minute,
         schedule_days: days,
@@ -188,9 +197,11 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
     setError(null);
     setShowDbPassword(false);
     setShowSshPassword(false);
+    setShowNasPassword(false);
     setDiscoveredDatabases([]);
     setShowDiscoverPanel(false);
     setShowSystemDbs(false);
+    setPathVerifyResult(null);
   }, [editingJob, isOpen]);
 
   const updateField = (field: keyof JobFormData, value: any) => {
@@ -279,6 +290,49 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
     }));
   };
 
+  // ── Verificar acceso a la ruta de destino ──
+  const handleVerifyPath = async () => {
+    if (!form.destination_path.trim()) {
+      setError("Ingresa la ruta de destino antes de verificar");
+      return;
+    }
+
+    setVerifyingPath(true);
+    setPathVerifyResult(null);
+    setError(null);
+
+    try {
+      const payload: any = {
+        destination_path: form.destination_path.trim(),
+      };
+      if (form.nas_username.trim()) {
+        payload.nas_username = form.nas_username.trim();
+      }
+      if (form.nas_password.trim()) {
+        payload.nas_password = form.nas_password.trim();
+      }
+
+      const res = await fetch("/api/backups/verify-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      setPathVerifyResult({
+        success: data.success,
+        message: data.success ? (data.message || "Acceso verificado") : (data.error || "Sin acceso"),
+      });
+    } catch (err: any) {
+      setPathVerifyResult({
+        success: false,
+        message: `Error de conexión: ${err.message}`,
+      });
+    } finally {
+      setVerifyingPath(false);
+    }
+  };
+
   const handleSubmit = async () => {
     // Validación básica
     if (!form.name.trim()) { setError("El nombre del trabajo es obligatorio"); return; }
@@ -334,6 +388,14 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
       } else if (isEditing) {
         payload.ssh_password = "••••••••";
       }
+    }
+
+    // NAS credentials
+    payload.nas_username = form.nas_username.trim() || null;
+    if (form.nas_password.trim()) {
+      payload.nas_password = form.nas_password;
+    } else if (isEditing) {
+      payload.nas_password = "••••••••";
     }
 
     try {
@@ -651,16 +713,48 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
 
           {/* ── Destino de Almacenamiento ── */}
           <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <FolderOpen className="w-4 h-4 text-vepagos-green" />
-              <h3 className="text-xs font-bold text-vepagos-navy uppercase tracking-wide">Destino de Almacenamiento</h3>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <FolderOpen className="w-4 h-4 text-vepagos-green" />
+                <h3 className="text-xs font-bold text-vepagos-navy uppercase tracking-wide">Destino de Almacenamiento</h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleVerifyPath}
+                disabled={verifyingPath || !form.destination_path.trim()}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {verifyingPath ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Shield className="w-3.5 h-3.5" />
+                )}
+                Verificar Acceso
+              </button>
             </div>
+
+            {/* Resultado de la verificación */}
+            {pathVerifyResult && (
+              <div className={`mb-3 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
+                pathVerifyResult.success
+                  ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                  : "bg-red-50 border border-red-200 text-red-700"
+              }`}>
+                {pathVerifyResult.success ? (
+                  <CheckSquare className="w-3.5 h-3.5 flex-shrink-0" />
+                ) : (
+                  <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                )}
+                <span>{pathVerifyResult.message}</span>
+              </div>
+            )}
+
             <div className="grid grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Tipo</label>
                 <select
                   value={form.destination_type}
-                  onChange={e => updateField("destination_type", e.target.value)}
+                  onChange={e => { updateField("destination_type", e.target.value); setPathVerifyResult(null); }}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-vepagos-green/50 focus:border-vepagos-green outline-none bg-white"
                 >
                   <option value="nas">NAS (Carpeta de red)</option>
@@ -672,12 +766,53 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
                 <input
                   type="text"
                   value={form.destination_path}
-                  onChange={e => updateField("destination_path", e.target.value)}
+                  onChange={e => { updateField("destination_path", e.target.value); setPathVerifyResult(null); }}
                   placeholder="\\\\192.168.0.27\\SqlResBackupAllDB\\MiBackup"
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-vepagos-green/50 focus:border-vepagos-green outline-none font-mono"
                 />
               </div>
             </div>
+
+            {/* Credenciales NAS (solo cuando el tipo es NAS) */}
+            {form.destination_type === "nas" && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-2">
+                  Credenciales de Red (opcional — solo si la carpeta requiere autenticación)
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Usuario de Red</label>
+                    <input
+                      type="text"
+                      value={form.nas_username}
+                      onChange={e => updateField("nas_username", e.target.value)}
+                      placeholder="DOMINIO\\usuario o usuario"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-vepagos-green/50 focus:border-vepagos-green outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Contraseña de Red</label>
+                    <div className="relative">
+                      <input
+                        type={showNasPassword ? "text" : "password"}
+                        value={form.nas_password}
+                        onChange={e => updateField("nas_password", e.target.value)}
+                        placeholder={isEditing ? "••••••••" : "Contraseña"}
+                        className="w-full px-3 py-2 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-vepagos-green/50 focus:border-vepagos-green outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNasPassword(p => !p)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showNasPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3 mt-3">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Retención</label>
