@@ -137,8 +137,9 @@ async function ensureNasAccess(job: BackupJob): Promise<void> {
       console.log(`[NAS] Montado con mount -t cifs: ${shareRoot} → ${mountPoint} (usuario: ${job.nas_username})`);
     }
   } catch (err: any) {
-    console.warn(`[NAS] No se pudo montar la ruta de red con credenciales: ${err.message}`);
-    // No lanzar error — puede que ya tenga acceso sin montar
+    const errMsg = err.stderr?.toString?.() || err.message || 'Error desconocido';
+    console.error(`[NAS] ERROR al montar ruta de red: ${errMsg}`);
+    throw new Error(`No se pudo montar la carpeta de red: ${errMsg.trim()}`);
   }
 }
 
