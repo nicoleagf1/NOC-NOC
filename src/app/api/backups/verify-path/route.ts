@@ -95,6 +95,15 @@ export async function POST(request: Request) {
     const targetPath = destination_path.trim();
     const isUNC = targetPath.startsWith('\\');
 
+    // En Linux, las rutas UNC requieren credenciales para montar CIFS
+    if (isUNC && !isWindows && (!nas_username || !nas_password)) {
+      return NextResponse.json({
+        success: false,
+        error: 'En Linux/Docker, se requieren credenciales de red (usuario y contraseña) para acceder a carpetas compartidas (NAS).',
+        details: { path: targetPath, requiresCredentials: true },
+      });
+    }
+
     // Si es una ruta UNC y se proporcionaron credenciales, intentar montar
     if (isUNC && nas_username && nas_password) {
       try {
