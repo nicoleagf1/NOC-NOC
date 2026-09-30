@@ -44,7 +44,11 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-USER nextjs
+# Pre-crear directorio para montajes NAS/CIFS
+RUN mkdir -p /mnt && chmod 777 /mnt
+
+# Nota: No usamos USER nextjs porque mount -t cifs requiere root
+# para montar carpetas de red (NAS) dentro del contenedor.
 
 EXPOSE 3000
 
