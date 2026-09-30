@@ -16,10 +16,11 @@ export function isMasked(text: string): boolean {
  * Cifra un texto usando AES-256-CBC
  */
 export function encrypt(text: string): string {
-  const secret = process.env.APP_SECRET;
-  if (!secret) {
+  const raw = process.env.APP_SECRET;
+  if (!raw) {
     throw new Error('APP_SECRET no está configurado en las variables de entorno.');
   }
+  const secret = raw.replace(/:$/, ''); // Eliminar : final si existe
   if (!text) return text;
   
   const iv = crypto.randomBytes(16);
@@ -35,10 +36,11 @@ export function encrypt(text: string): string {
  * Descifra un texto previamente cifrado con encrypt()
  */
 export function decrypt(encryptedText: string): string {
-  const secret = process.env.APP_SECRET;
-  if (!secret) {
+  const raw = process.env.APP_SECRET;
+  if (!raw) {
     throw new Error('APP_SECRET no está configurado en las variables de entorno.');
   }
+  const secret = raw.replace(/:$/, ''); // Eliminar : final si existe
   if (!encryptedText) return encryptedText;
   
   const parts = encryptedText.split(':');

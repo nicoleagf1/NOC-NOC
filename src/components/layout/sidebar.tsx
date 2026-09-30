@@ -21,7 +21,8 @@ import {
   Router,
   Cloud,
   Wrench,
-  Workflow
+  Workflow,
+  HardDriveDownload
 } from "lucide-react";
 
 const navItems = [
@@ -58,6 +59,7 @@ const navItems = [
     items: [
       { name: "UTILIDADES", href: "/utilidades", icon: Wrench },
       { name: "AUTOMATIZACIÓN", href: "/automatizacion", icon: Workflow },
+      { name: "RESPALDOS", href: "/respaldos", icon: HardDriveDownload },
     ],
   },
 ];
