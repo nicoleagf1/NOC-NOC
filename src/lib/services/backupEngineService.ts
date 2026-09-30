@@ -491,31 +491,56 @@ async function backupPostgres(job: BackupJob): Promise<{ filePath: string; sizeB
 // Política de Retención (Housekeeping)
 // ──────────────────────────────────────────────────────────────────────────────
 
-async function applyRetentionPolicy(job: BackupJob): Promise<number> {
+async function applyRetentionPolicy(job: BackupJob): Promise<{ deletedCount: number; purgedFiles: string[] }> {
   const destDir = job.destination_path;
-  if (!fs.existsSync(destDir)) return 0;
+  if (!fs.existsSync(destDir)) {
+    console.warn(`[Retención] Carpeta de destino no existe o no es accesible: ${destDir}`);
+    return { deletedCount: 0, purgedFiles: [] };
+  }
+
+  // Validación de seguridad: debe ser un número entero mayor a 0
+  if (!job.retention_days || job.retention_days < 1) {
+    console.log(`[Retención] Política inactiva o días inválidos para "${job.name}" (${job.retention_days} días)`);
+    return { deletedCount: 0, purgedFiles: [] };
+  }
 
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - job.retention_days);
 
-  let deletedCount = 0;
+  // Nombre de la base de datos normalizado para NO borrar respaldos de otras BD en la misma carpeta compartida
+  const safeDbPrefix = job.database_name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const validExtensions = ['.bak', '.gz', '.zip', '.sql'];
+
+  const purgedFiles: string[] = [];
 
   try {
     const files = fs.readdirSync(destDir);
     for (const file of files) {
+      const fileLower = file.toLowerCase();
+
+      // 1. Debe tener una extensión de respaldo conocida
+      const hasValidExt = validExtensions.some((ext) => fileLower.endsWith(ext));
+      if (!hasValidExt) continue;
+
+      // 2. Debe pertenecer a esta base de datos (evita borrar archivos de otras BD como AVEPAG o NVEPAG)
+      const fileWithoutSymbols = fileLower.replace(/[^a-zA-Z0-9]/g, '');
+      if (!fileWithoutSymbols.startsWith(safeDbPrefix)) continue;
+
       const fullPath = path.join(destDir, file);
       const stat = fs.statSync(fullPath);
 
+      // 3. Solo purgar si su fecha de modificación es anterior a la fecha de corte
       if (stat.isFile() && stat.mtime < cutoffDate) {
         fs.unlinkSync(fullPath);
-        deletedCount++;
+        purgedFiles.push(file);
+        console.log(`[Retención] 🗑 Archivo purgado (> ${job.retention_days}d): ${file} (mtime: ${stat.mtime.toLocaleDateString()})`);
       }
     }
   } catch (err: any) {
     console.error(`[Retención] Error limpiando archivos en ${destDir}: ${err.message}`);
   }
 
-  return deletedCount;
+  return { deletedCount: purgedFiles.length, purgedFiles };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -527,8 +552,8 @@ export const backupEngineService = {
    * Ejecuta un trabajo de respaldo completo:
    * 1. Registra inicio en backup_history (status = RUNNING)
    * 2. Ejecuta el dump según el motor (mysql, mssql, postgres)
-   * 3. Actualiza backup_history con resultado (SUCCESS o FAILED)
-   * 4. Aplica política de retención
+   * 3. Aplica política de retención para depurar archivos antiguos
+   * 4. Actualiza backup_history con resultado (SUCCESS o FAILED)
    */
   async runJob(jobId: string): Promise<{
     success: boolean;
@@ -575,7 +600,17 @@ export const backupEngineService = {
       const durationSeconds = Math.round((Date.now() - startTime) / 1000);
       const sizeFormatted = formatBytes(result.sizeBytes);
 
-      // 4. Registrar éxito en el historial
+      // 4. Aplicar política de retención
+      const retentionResult = await applyRetentionPolicy(job);
+      let retentionSummary = '';
+      if (retentionResult.deletedCount > 0) {
+        retentionSummary = ` | Retención: ${retentionResult.deletedCount} archivo(s) depurado(s) (> ${job.retention_days}d: ${retentionResult.purgedFiles.join(', ')})`;
+        console.log(`[Backup Engine] 🗑 Retención: ${retentionResult.deletedCount} archivo(s) depurado(s) (> ${job.retention_days} días)`);
+      } else {
+        retentionSummary = ` | Retención: Verificada (${job.retention_days} días), 0 archivos expirados`;
+      }
+
+      // 5. Registrar éxito en el historial
       await backupJobService.updateHistoryRecord(historyId, {
         status: 'SUCCESS',
         durationSeconds,
@@ -583,16 +618,10 @@ export const backupEngineService = {
         fileSizeBytes: result.sizeBytes,
         fileSizeFormatted: sizeFormatted,
         destinationSavedPath: result.filePath,
-        logOutput: `Backup completado exitosamente. Motor: ${job.engine}, Tamaño: ${sizeFormatted}, Duración: ${durationSeconds}s`,
+        logOutput: `Backup completado exitosamente. Motor: ${job.engine}, Tamaño: ${sizeFormatted}, Duración: ${durationSeconds}s${retentionSummary}`,
       });
 
       console.log(`[Backup Engine] ✓ Completado: "${job.name}" → ${sizeFormatted} en ${durationSeconds}s`);
-
-      // 5. Aplicar política de retención
-      const deletedFiles = await applyRetentionPolicy(job);
-      if (deletedFiles > 0) {
-        console.log(`[Backup Engine] 🗑 Retención: ${deletedFiles} archivo(s) eliminado(s) (> ${job.retention_days} días)`);
-      }
 
       return {
         success: true,
