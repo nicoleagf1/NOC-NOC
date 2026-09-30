@@ -633,21 +633,56 @@ export const backupEngineService = {
     } catch (error: any) {
       const durationSeconds = Math.round((Date.now() - startTime) / 1000);
 
+      // Extraer causa raíz detallada (incluyendo errores anidados de MSSQL, SSH o MySQL)
+      let detailedError = error.message || 'Error desconocido';
+      if (error.precedingErrors && Array.isArray(error.precedingErrors) && error.precedingErrors.length > 0) {
+        const precedingMsgs = error.precedingErrors.map((pe: any) => pe.message || pe).join('\n• ');
+        detailedError = `${detailedError}\n\nDetalles del motor:\n• ${precedingMsgs}`;
+      }
+      if (error.originalError?.message && error.originalError.message !== error.message) {
+        detailedError = `${detailedError}\n\nCausa original:\n• ${error.originalError.message}`;
+      }
+
+      const logOutput = [
+        `=== REPORTE DE ERROR DE RESPALDO ===`,
+        `Trabajo: ${job.name} (ID: ${job.id})`,
+        `Motor: ${job.engine}`,
+        `Servidor: ${job.host}:${job.port}`,
+        `Base de Datos: ${job.database_name}`,
+        `Ruta Destino: ${job.destination_path}`,
+        `Túnel SSH: ${job.use_ssh_tunnel ? `Activo (${job.ssh_host}:${job.ssh_port})` : 'No'}`,
+        `Fecha de Intento: ${new Date().toISOString()}`,
+        `Duración antes del fallo: ${durationSeconds} segundos`,
+        ``,
+        `--- MENSAJE DE ERROR ---`,
+        detailedError,
+        ``,
+        `--- DETALLES TÉCNICOS ---`,
+        `Código de Error: ${error.code || error.number || 'N/A'}`,
+        `Estado SQL: ${error.state || 'N/A'}`,
+        `Clase / Severidad: ${error.class || error.severity || 'N/A'}`,
+        `Procedimiento: ${error.procName || 'N/A'}`,
+        `Línea: ${error.lineNumber || 'N/A'}`,
+        ``,
+        `--- STACK TRACE ---`,
+        error.stack || 'No disponible',
+      ].join('\n');
+
       // Registrar fallo en el historial
       await backupJobService.updateHistoryRecord(historyId, {
         status: 'FAILED',
         durationSeconds,
-        errorMessage: error.message,
-        logOutput: `Error: ${error.message}\nStack: ${error.stack || 'N/A'}`,
+        errorMessage: detailedError,
+        logOutput,
       });
 
-      console.error(`[Backup Engine] ✗ Fallo: "${job.name}" → ${error.message}`);
+      console.error(`[Backup Engine] ✗ Fallo en "${job.name}":\n${detailedError}`);
 
       return {
         success: false,
         historyId,
         durationSeconds,
-        error: error.message,
+        error: detailedError,
       };
     }
   },

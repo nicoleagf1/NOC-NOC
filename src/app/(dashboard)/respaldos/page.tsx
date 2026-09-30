@@ -24,58 +24,9 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import BackupJobModal from "@/components/backups/BackupJobModal";
+import BackupHistoryDetailModal from "@/components/backups/BackupHistoryDetailModal";
 
-interface BackupJob {
-  id: string;
-  name: string;
-  engine: string;
-  is_active: boolean;
-  host: string;
-  port: number;
-  database_name: string;
-  db_username: string;
-  use_ssh_tunnel: boolean;
-  ssh_host?: string;
-  ssh_port?: number;
-  ssh_username?: string;
-  destination_type: string;
-  destination_path: string;
-  cron_schedule: string;
-  schedule_description?: string;
-  retention_days: number;
-  compression_format: string;
-  send_alert_on_failure: boolean;
-  notification_email?: string;
-  last_backup_status?: string | null;
-  last_backup_date?: string | null;
-  last_backup_size?: string | null;
-  last_backup_duration?: number | null;
-}
-
-interface BackupHistoryItem {
-  id: string;
-  job_id: string;
-  started_at: string;
-  finished_at?: string;
-  duration_seconds?: number;
-  status: string;
-  backup_type: string;
-  file_name?: string;
-  file_size_bytes?: number;
-  file_size_formatted?: string;
-  error_message?: string;
-}
-
-interface BackupStats {
-  totalJobs: number;
-  activeJobs: number;
-  totalSuccess: number;
-  totalFailed: number;
-  currentlyRunning: number;
-  successRate: number;
-  totalBytesFormatted: string;
-  avgDurationSeconds: number;
-}
+import { BackupJob, BackupHistoryItem, BackupStats } from "@/types/backup";
 
 const ENGINE_LABELS: Record<string, string> = {
   mssql: "Microsoft SQL Server",
@@ -113,6 +64,7 @@ export default function RespaldosPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<BackupJob | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<BackupHistoryItem | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const HISTORY_PER_PAGE = 10;
 
@@ -611,11 +563,14 @@ export default function RespaldosPage() {
         {/* ══ Columna 3: Historial de Ejecuciones ══ */}
         <div className="col-span-4 bg-white rounded-xl border border-gray-200 overflow-hidden h-fit">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <h2 className="text-sm font-bold text-vepagos-navy uppercase tracking-wide font-barlow-condensed">
-              Historial & Restauración
-            </h2>
+            <div>
+              <h2 className="text-sm font-bold text-vepagos-navy uppercase tracking-wide font-barlow-condensed">
+                Historial & Restauración
+              </h2>
+              <p className="text-[10px] text-gray-400">Clic en un registro para ver detalle</p>
+            </div>
             {selectedJob && (
-              <span className="text-[11px] text-gray-400">{history.length} registros</span>
+              <span className="text-[11px] text-gray-400 font-mono">{history.length} registros</span>
             )}
           </div>
           <div>
@@ -623,7 +578,12 @@ export default function RespaldosPage() {
               history.length > 0 ? (
                 <div className="divide-y divide-gray-50">
                   {history.slice((historyPage - 1) * HISTORY_PER_PAGE, historyPage * HISTORY_PER_PAGE).map((item) => (
-                    <div key={item.id} className="px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedHistoryItem(item)}
+                      title="Haz clic para ver el detalle y diagnóstico completo"
+                      className="px-4 py-2.5 flex items-center justify-between hover:bg-emerald-50/40 active:bg-emerald-100/40 cursor-pointer transition-all group"
+                    >
                       <div className="flex items-center gap-3 min-w-0">
                         {item.status === "SUCCESS" ? (
                           <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -633,7 +593,7 @@ export default function RespaldosPage() {
                           <Loader2 className="w-4 h-4 animate-spin text-amber-500 flex-shrink-0" />
                         )}
                         <div className="min-w-0">
-                          <p className="text-xs text-gray-700 font-medium">
+                          <p className="text-xs text-gray-700 font-medium group-hover:text-vepagos-navy transition-colors">
                             {formatDate(item.started_at)}
                           </p>
                           {item.file_name && (
@@ -648,7 +608,7 @@ export default function RespaldosPage() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2.5 text-right flex-shrink-0">
+                      <div className="flex items-center gap-2 text-right flex-shrink-0">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
                           item.status === "SUCCESS"
                             ? "text-green-700 bg-green-50"
@@ -668,6 +628,7 @@ export default function RespaldosPage() {
                             {item.duration_seconds}s
                           </span>
                         )}
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-vepagos-green group-hover:translate-x-0.5 transition-all" />
                       </div>
                     </div>
                   ))}
@@ -748,6 +709,14 @@ export default function RespaldosPage() {
           // Recargar scheduler para que aplique los cambios de cron
           try { await fetch("/api/backups/scheduler", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reload" }) }); } catch {}
         }}
+      />
+
+      {/* ── Modal Detalle de Reporte / Diagnóstico de Fallo ── */}
+      <BackupHistoryDetailModal
+        isOpen={!!selectedHistoryItem}
+        item={selectedHistoryItem}
+        job={selectedJob}
+        onClose={() => setSelectedHistoryItem(null)}
       />
     </div>
   );

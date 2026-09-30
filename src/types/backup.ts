@@ -63,3 +63,14 @@ export interface BackupHistoryItem {
   log_output?: string;
   created_at: string;
 }
+
+export interface BackupStats {
+  totalJobs: number;
+  activeJobs: number;
+  totalSuccess: number;
+  totalFailed: number;
+  currentlyRunning: number;
+  totalBytesFormatted: string;
+  avgDurationSeconds: number;
+  successRate: number;
+}
