@@ -6,24 +6,30 @@ import { execSync } from 'child_process';
 const isWindows = os.platform() === 'win32';
 
 /**
+ * Normaliza una ruta UNC (\\server\share\sub) a partes separadas por '/'.
+ * Retorna ['server', 'share', 'sub', ...]
+ */
+function parseUNCParts(uncPath: string): string[] {
+  return uncPath.replace(/\\/g, '/').replace(/^\/+/, '').split('/').filter(Boolean);
+}
+
+/**
  * Monta un share de red SMB/CIFS según la plataforma.
  * - Windows: usa `net use`
  * - Linux:   usa `mount -t cifs`
  */
 function mountNetworkShare(sharePath: string, username: string, password: string): void {
-  // Extraer \\server\share del path completo
-  const shareParts = sharePath.replace(/\\\\/g, '/').replace(/^\/\//, '').split('/');
-  const server = shareParts[0];
-  const share = shareParts[1] || '';
-  const shareRoot = isWindows
-    ? `\\\\${server}\\${share}`
-    : `//${server}/${share}`;
+  const parts = parseUNCParts(sharePath);
+  const server = parts[0];
+  const share = parts[1] || '';
 
   if (isWindows) {
+    const shareRoot = `\\\\${server}\\${share}`;
     try { execSync(`net use "${shareRoot}" /delete /y 2>nul`, { timeout: 10000, windowsHide: true }); } catch { /* ignorar */ }
     execSync(`net use "${shareRoot}" /user:"${username}" "${password}"`, { timeout: 15000, windowsHide: true });
   } else {
     // Linux: montar via mount.cifs (requiere cifs-utils)
+    const shareRoot = `//${server}/${share}`;
     const mountPoint = `/mnt/nas_${server}_${share}`.replace(/[^a-zA-Z0-9_/]/g, '_');
     try { fs.mkdirSync(mountPoint, { recursive: true }); } catch { /* ignorar */ }
 
@@ -34,9 +40,15 @@ function mountNetworkShare(sharePath: string, username: string, password: string
     let userPart = username;
     let domainPart = '';
     if (username.includes('\\')) {
-      const parts = username.split('\\');
-      domainPart = parts[0];
-      userPart = parts[1];
+      const idx = username.lastIndexOf('\\');
+      domainPart = username.substring(0, idx);
+      userPart = username.substring(idx + 1);
+    } else if (username.includes('/')) {
+      const idx = username.lastIndexOf('/');
+      domainPart = username.substring(0, idx);
+      userPart = username.substring(idx + 1);
+    } else if (username.startsWith('.\\') || username.startsWith('./')) {
+      userPart = username.substring(2);
     }
 
     const domainOpt = domainPart ? `,domain=${domainPart}` : '';
@@ -52,9 +64,8 @@ function mountNetworkShare(sharePath: string, username: string, password: string
 function resolveNasPath(targetPath: string): string {
   if (isWindows) return targetPath;
 
-  // En Linux, traducir \\server\share\subfolder → /mnt/nas_server_share/subfolder
-  if (targetPath.startsWith('\\\\')) {
-    const parts = targetPath.replace(/\\\\/g, '/').replace(/^\/\//, '').split('/');
+  if (targetPath.startsWith('\\')) {
+    const parts = parseUNCParts(targetPath);
     const server = parts[0];
     const share = parts[1] || '';
     const subPath = parts.slice(2).join('/');
@@ -82,7 +93,7 @@ export async function POST(request: Request) {
     }
 
     const targetPath = destination_path.trim();
-    const isUNC = targetPath.startsWith('\\\\');
+    const isUNC = targetPath.startsWith('\\');
 
     // Si es una ruta UNC y se proporcionaron credenciales, intentar montar
     if (isUNC && nas_username && nas_password) {
@@ -118,7 +129,7 @@ export async function POST(request: Request) {
         }
 
         // Intentar escribir un archivo de prueba para verificar permisos de escritura
-        const testFile = `${resolvedPath}${isWindows ? '\\' : '/'}.noc_noc_write_test_${Date.now()}.tmp`;
+        const testFile = `${resolvedPath}/.noc_noc_write_test_${Date.now()}.tmp`;
         try {
           fs.writeFileSync(testFile, 'NOC-NOC write test');
           fs.unlinkSync(testFile);
@@ -145,7 +156,7 @@ export async function POST(request: Request) {
         // Intentar crear la carpeta
         try {
           fs.mkdirSync(resolvedPath, { recursive: true });
-          const testFile = `${resolvedPath}${isWindows ? '\\' : '/'}.noc_noc_write_test_${Date.now()}.tmp`;
+          const testFile = `${resolvedPath}/.noc_noc_write_test_${Date.now()}.tmp`;
           fs.writeFileSync(testFile, 'NOC-NOC write test');
           fs.unlinkSync(testFile);
           return NextResponse.json({

@@ -86,6 +86,13 @@ function ensureDir(dirPath: string): void {
 }
 
 /**
+ * Normaliza una ruta UNC a partes: ['server', 'share', 'sub', ...]
+ */
+function parseUNCParts(uncPath: string): string[] {
+  return uncPath.replace(/\\/g, '/').replace(/^\/+/, '').split('/').filter(Boolean);
+}
+
+/**
  * Si el job tiene credenciales NAS, monta el share de red según la plataforma:
  * - Windows: `net use`
  * - Linux:   `mount -t cifs` (requiere cifs-utils instalado en el contenedor)
@@ -93,13 +100,13 @@ function ensureDir(dirPath: string): void {
 async function ensureNasAccess(job: BackupJob): Promise<void> {
   if (!job.nas_username || !job.nas_password_encrypted) return;
   const destPath = job.destination_path;
-  if (!destPath.startsWith('\\\\')) return; // Solo aplica a rutas UNC
+  if (!destPath.startsWith('\\')) return; // Solo aplica a rutas UNC
 
   const nasPassword = decrypt(job.nas_password_encrypted);
   const isWin = os.platform() === 'win32';
-  const shareParts = destPath.replace(/\\\\/g, '/').replace(/^\/\//, '').split('/');
-  const server = shareParts[0];
-  const share = shareParts[1] || '';
+  const parts = parseUNCParts(destPath);
+  const server = parts[0];
+  const share = parts[1] || '';
 
   try {
     const { execSync } = await import('child_process');
@@ -119,9 +126,11 @@ async function ensureNasAccess(job: BackupJob): Promise<void> {
       let userPart = job.nas_username;
       let domainOpt = '';
       if (job.nas_username.includes('\\')) {
-        const parts = job.nas_username.split('\\');
-        domainOpt = `,domain=${parts[0]}`;
-        userPart = parts[1];
+        const idx = job.nas_username.lastIndexOf('\\');
+        domainOpt = `,domain=${job.nas_username.substring(0, idx)}`;
+        userPart = job.nas_username.substring(idx + 1);
+      } else if (job.nas_username.startsWith('./')) {
+        userPart = job.nas_username.substring(2);
       }
 
       execSync(`mount -t cifs "${shareRoot}" "${mountPoint}" -o username="${userPart}",password="${nasPassword}"${domainOpt},iocharset=utf8,file_mode=0777,dir_mode=0777`, { timeout: 15000 });
@@ -139,9 +148,9 @@ async function ensureNasAccess(job: BackupJob): Promise<void> {
  */
 function resolveDestPath(destPath: string): string {
   if (os.platform() === 'win32') return destPath;
-  if (!destPath.startsWith('\\\\')) return destPath;
+  if (!destPath.startsWith('\\')) return destPath;
 
-  const parts = destPath.replace(/\\\\/g, '/').replace(/^\/\//, '').split('/');
+  const parts = parseUNCParts(destPath);
   const server = parts[0];
   const share = parts[1] || '';
   const subPath = parts.slice(2).join('/');
