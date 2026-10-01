@@ -738,9 +738,8 @@ export const backupEngineService = {
       throw new Error(`Job no encontrado: ${jobId}`);
     }
 
-    if (!job.is_active) {
-      throw new Error(`Job "${job.name}" está desactivado.`);
-    }
+    // Nota: No bloqueamos por is_active aquí — un job inactivo solo se excluye
+    // de la ejecución automática (cron), pero puede ejecutarse manualmente.
 
     // 2. Registrar inicio en el historial
     const historyId = await backupJobService.createHistoryRecord(jobId, 'FULL');
