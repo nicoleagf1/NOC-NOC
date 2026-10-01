@@ -250,11 +250,12 @@ async function backupMySQL(job: BackupJob): Promise<{ filePath: string; sizeByte
       const ssh = new SSHClient();
       ssh.on('ready', () => {
         // Construir comando remoto: si el host no tiene mysqldump instalado, usar el contenedor docker
+        // Agregamos "; echo EXIT_CODE:$?" para capturar el código de salida del dump
         const dumpCmd = `
           if command -v mysqldump >/dev/null 2>&1; then
-            mysqldump -h ${job.host} -P ${job.port || 3306} -u ${job.db_username} -p'${dbPassword}' --single-transaction --quick --routines --triggers ${job.database_name}
+            mysqldump -h ${job.host} -P ${job.port || 3306} -u ${job.db_username} -p'${dbPassword}' --single-transaction --quick --routines --triggers --set-gtid-purged=OFF ${job.database_name} 2>/tmp/mysqldump_stderr.log; DUMP_EXIT=$?; cat /tmp/mysqldump_stderr.log >&2; exit $DUMP_EXIT
           elif command -v mariadb-dump >/dev/null 2>&1; then
-            mariadb-dump -h ${job.host} -P ${job.port || 3306} -u ${job.db_username} -p'${dbPassword}' --single-transaction --quick --routines --triggers ${job.database_name}
+            mariadb-dump -h ${job.host} -P ${job.port || 3306} -u ${job.db_username} -p'${dbPassword}' --single-transaction --quick --routines --triggers ${job.database_name} 2>/tmp/mysqldump_stderr.log; DUMP_EXIT=$?; cat /tmp/mysqldump_stderr.log >&2; exit $DUMP_EXIT
           elif docker ps --format '{{.Names}}' 2>/dev/null | grep -Eq '^(mariadb|mysql)$'; then
             CONTAINER=$(docker ps --format '{{.Names}}' | grep -E '^(mariadb|mysql)$' | head -n 1)
             docker exec $CONTAINER sh -c "mariadb-dump -u ${job.db_username} -p'${dbPassword}' --single-transaction --quick --routines --triggers ${job.database_name} 2>/dev/null || mysqldump -u ${job.db_username} -p'${dbPassword}' --single-transaction --quick --routines --triggers ${job.database_name}"
@@ -272,21 +273,58 @@ async function backupMySQL(job: BackupJob): Promise<{ filePath: string; sizeByte
 
           const fileStream = fs.createWriteStream(rawFilePath);
           let stderrOutput = '';
+          let exitCode: number | null = null;
 
           stream.stderr.on('data', (data: Buffer) => {
             stderrOutput += data.toString();
+          });
+
+          // Capturar el código de salida del comando remoto
+          stream.on('exit', (code: number) => {
+            exitCode = code;
           });
 
           pipeline(stream, fileStream)
             .then(() => {
               ssh.end();
               const stats = fs.statSync(rawFilePath);
+
+              // Validar código de salida
+              if (exitCode !== null && exitCode !== 0) {
+                if (fs.existsSync(rawFilePath)) fs.unlinkSync(rawFilePath);
+                reject(new Error(`mysqldump falló con código de salida ${exitCode}. stderr: ${stderrOutput}`));
+                return;
+              }
+
+              // Validar que el archivo no esté vacío
               if (stats.size < 100) {
                 fs.unlinkSync(rawFilePath);
-                reject(new Error(`mysqldump produjo un archivo vacío. stderr: ${stderrOutput}`));
-              } else {
-                resolve();
+                reject(new Error(`mysqldump produjo un archivo vacío (${stats.size} bytes). stderr: ${stderrOutput}`));
+                return;
               }
+
+              // Validar integridad: el dump debe terminar con "-- Dump completed"
+              try {
+                const fd = fs.openSync(rawFilePath, 'r');
+                const tailSize = Math.min(stats.size, 512);
+                const buffer = Buffer.alloc(tailSize);
+                fs.readSync(fd, buffer, 0, tailSize, stats.size - tailSize);
+                fs.closeSync(fd);
+                const tail = buffer.toString('utf-8');
+
+                if (!tail.includes('Dump completed')) {
+                  console.warn(`[Backup Engine] ADVERTENCIA: Dump incompleto detectado para ${job.database_name}. Tamaño: ${formatBytes(stats.size)}. Los últimos 200 caracteres: ${tail.slice(-200)}`);
+                  if (fs.existsSync(rawFilePath)) fs.unlinkSync(rawFilePath);
+                  reject(new Error(`Dump incompleto: el archivo (${formatBytes(stats.size)}) no contiene el marcador "Dump completed". La conexión SSH pudo haberse interrumpido durante la transferencia. stderr: ${stderrOutput}`));
+                  return;
+                }
+              } catch (readErr) {
+                console.warn(`[Backup Engine] No se pudo validar integridad del dump: ${readErr}`);
+                // Continuar aunque no se pueda validar
+              }
+
+              console.log(`[Backup Engine] Dump MySQL completado: ${formatBytes(stats.size)} para ${job.database_name}`);
+              resolve();
             })
             .catch((pipeErr) => {
               ssh.end();
@@ -305,7 +343,9 @@ async function backupMySQL(job: BackupJob): Promise<{ filePath: string; sizeByte
         port: job.ssh_port || 22,
         username: job.ssh_username || 'root',
         password: sshPassword,
-        readyTimeout: 30000,
+        readyTimeout: 60000,
+        keepaliveInterval: 10000,  // Enviar keepalive cada 10 segundos
+        keepaliveCountMax: 30,     // Tolerar 30 fallos (5 minutos sin respuesta)
       });
     } else {
       // ── Conexión directa TCP/IP ──
