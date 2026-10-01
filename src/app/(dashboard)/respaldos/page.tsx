@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   Pencil,
   ChevronLeft,
+  StopCircle,
 } from "lucide-react";
 import BackupJobModal from "@/components/backups/BackupJobModal";
 import BackupHistoryDetailModal from "@/components/backups/BackupHistoryDetailModal";
@@ -199,6 +200,30 @@ export default function RespaldosPage() {
       const data = await res.json();
       if (!res.ok) {
         alert(`Error: ${data.error || "Fallo en la ejecución"}`);
+      }
+    } catch (err: any) {
+      alert(`Error de red: ${err.message}`);
+    } finally {
+      setRunningJobs((prev) => {
+        const next = new Set(prev);
+        next.delete(jobId);
+        return next;
+      });
+      await Promise.all([
+        fetchJobs(),
+        fetchStats(),
+        selectedJobIdRef.current ? fetchHistory(selectedJobIdRef.current) : Promise.resolve(),
+      ]);
+    }
+  };
+
+  // ── Cancelar backup en ejecución ──
+  const handleCancelJob = async (jobId: string) => {
+    try {
+      const res = await fetch(`/api/backups/jobs/${jobId}/cancel`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Error: ${data.error || "No se pudo cancelar"}`);
       }
     } catch (err: any) {
       alert(`Error de red: ${err.message}`);
@@ -448,6 +473,16 @@ export default function RespaldosPage() {
                     )}
                     Ejecutar Ahora
                   </button>
+                  {runningJobs.has(selectedJob.id) && (
+                    <button
+                      onClick={() => handleCancelJob(selectedJob.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                      title="Detener ejecución"
+                    >
+                      <StopCircle className="w-3.5 h-3.5" />
+                      Detener
+                    </button>
+                  )}
                   <button
                     onClick={() => { setEditingJob(selectedJob); setIsModalOpen(true); }}
                     className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors"

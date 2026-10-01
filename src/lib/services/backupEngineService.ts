@@ -716,6 +716,9 @@ async function applyRetentionPolicy(job: BackupJob): Promise<{ deletedCount: num
 // Orquestador Principal (Punto de entrada para ejecutar un Job)
 // ──────────────────────────────────────────────────────────────────────────────
 
+// Mapa de trabajos en ejecución para soporte de cancelación
+const runningJobsMap = new Map<string, AbortController>();
+
 export const backupEngineService = {
   /**
    * Ejecuta un trabajo de respaldo completo:
@@ -747,7 +750,15 @@ export const backupEngineService = {
 
     console.log(`[Backup Engine] ▶ Iniciando: "${job.name}" (${job.engine}) → ${job.destination_path}`);
 
+    // Registrar AbortController para soporte de cancelación
+    const abortController = new AbortController();
+    runningJobsMap.set(jobId, abortController);
+
     try {
+      // Verificar cancelación antes de iniciar
+      if (abortController.signal.aborted) {
+        throw new Error('Backup cancelado por el usuario');
+      }
       // 3. Ejecutar el respaldo según el motor
       let result: { filePath: string; sizeBytes: number };
 
@@ -791,6 +802,7 @@ export const backupEngineService = {
 
       console.log(`[Backup Engine] ✓ Completado: "${job.name}" → ${sizeFormatted} en ${durationSeconds}s`);
 
+      runningJobsMap.delete(jobId);
       return {
         success: true,
         historyId,
@@ -846,6 +858,7 @@ export const backupEngineService = {
 
       console.error(`[Backup Engine] ✗ Fallo en "${job.name}":\n${detailedError}`);
 
+      runningJobsMap.delete(jobId);
       return {
         success: false,
         historyId,
@@ -853,6 +866,27 @@ export const backupEngineService = {
         error: detailedError,
       };
     }
+  },
+
+  /**
+   * Cancela un trabajo de respaldo en ejecución
+   */
+  cancelJob(jobId: string): boolean {
+    const controller = runningJobsMap.get(jobId);
+    if (controller) {
+      console.log(`[Backup Engine] ⏹ Cancelando job: ${jobId}`);
+      controller.abort();
+      runningJobsMap.delete(jobId);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * Verifica si un job está en ejecución
+   */
+  isJobRunning(jobId: string): boolean {
+    return runningJobsMap.has(jobId);
   },
 
   /**
