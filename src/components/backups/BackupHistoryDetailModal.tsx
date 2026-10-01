@@ -36,6 +36,7 @@ export default function BackupHistoryDetailModal({
 }: BackupHistoryDetailModalProps) {
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [elapsed, setElapsed] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -50,6 +51,31 @@ export default function BackupHistoryDetailModal({
     }
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
+
+  // Timer de tiempo transcurrido para backups en ejecución
+  useEffect(() => {
+    if (!item || item.status !== "RUNNING") {
+      setElapsed("");
+      return;
+    }
+    const startTime = new Date(item.started_at).getTime();
+    const updateElapsed = () => {
+      const diff = Math.floor((Date.now() - startTime) / 1000);
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      setElapsed(
+        h > 0
+          ? `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`
+          : m > 0
+          ? `${m}m ${s.toString().padStart(2, "0")}s`
+          : `${s}s`
+      );
+    };
+    updateElapsed();
+    const timer = setInterval(updateElapsed, 1000);
+    return () => clearInterval(timer);
+  }, [item]);
 
   if (!isOpen || !item || !mounted) return null;
 
@@ -169,6 +195,15 @@ export default function BackupHistoryDetailModal({
               </span>
             )}
           </div>
+
+          {/* Timer de tiempo transcurrido (solo para backups en ejecución) */}
+          {isRunning && elapsed && (
+            <div className="p-3 rounded-lg border bg-blue-50/60 border-blue-200 text-blue-800 flex items-center gap-2.5">
+              <Clock className="w-4 h-4 animate-pulse" />
+              <span className="text-xs font-medium">Tiempo transcurrido:</span>
+              <span className="text-sm font-mono font-bold">{elapsed}</span>
+            </div>
+          )}
 
           {/* Grilla de Datos Clave */}
           <div className="grid grid-cols-2 gap-3 bg-gray-50/80 p-3.5 rounded-lg border border-gray-100">
