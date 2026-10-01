@@ -411,71 +411,92 @@ async function backupMSSQL(job: BackupJob): Promise<{ filePath: string; sizeByte
     const bakLocalPath = path.join(destDir, fileName);
 
     if (isUNC) {
-      // SQL Server es Windows → puede escribir directamente al NAS via UNC
-      const nasUncBakPath = job.destination_path.replace(/[/\\]$/, '') + '\\' + fileName;
+      // Estrategia para MSSQL → NAS:
+      // 1. Backup al staging local del servidor SQL (siempre funciona)
+      // 2. Autenticar SQL Server al NAS con net use (usando credenciales NAS del job)
+      // 3. Copiar con xp_cmdshell del staging al NAS
+      // 4. El contenedor Docker lee el archivo desde el NAS vía CIFS mount
 
-      try {
-        console.log(`[MSSQL Backup] Backup directo al NAS: ${nasUncBakPath}`);
-        await pool.request().query(`
-          BACKUP DATABASE [${job.database_name}] 
-          TO DISK = N'${nasUncBakPath}' 
-          WITH FORMAT, CHECKSUM, COMPRESSION, INIT, 
-               NAME = N'${job.name} - Full Backup', STATS = 10;
-        `);
+      const parts = parseUNCParts(job.destination_path);
+      const nasServer = parts[0];
+      const nasShare = parts[1];
+      const nasSubPath = parts.slice(2).join('\\');
+      const nasUncShare = `\\\\${nasServer}\\${nasShare}`;
+      const nasUncDir = `\\\\${nasServer}\\${nasShare}${nasSubPath ? '\\' + nasSubPath : ''}`;
+      
+      const stagingName = `noc_${Date.now()}_${fileName}`;
+      const stagingPath = `D:\\TemporaryFoldelSQL\\${stagingName}`;
 
-        // Esperar a que el archivo sea visible en el montaje CIFS (cache latency)
-        let fileVisible = false;
-        for (let attempt = 0; attempt < 10; attempt++) {
-          try { fs.readdirSync(path.dirname(bakLocalPath)); } catch {}
-          if (fs.existsSync(bakLocalPath)) {
-            fileVisible = true;
-            break;
-          }
-          console.log(`[MSSQL Backup] Archivo no visible aún, reintentando (${attempt + 1}/10)...`);
-          await new Promise(r => setTimeout(r, 3000));
-        }
+      // Paso 1: Backup al staging local del servidor SQL
+      console.log(`[MSSQL Backup] Paso 1: Backup a staging ${stagingPath}`);
+      await pool.request().query(`
+        BACKUP DATABASE [${job.database_name}] 
+        TO DISK = N'${stagingPath}' 
+        WITH FORMAT, CHECKSUM, COMPRESSION, INIT, 
+             NAME = N'${job.name} - Full Backup', STATS = 10;
+      `);
 
-        if (!fileVisible) {
-          throw new Error(`Archivo no visible desde contenedor después de backup directo. Ruta: ${bakLocalPath}`);
-        }
-        const bakStats = fs.statSync(bakLocalPath);
-        if (bakStats.size < 1024) {
-          throw new Error(`Archivo .bak demasiado pequeño: ${formatBytes(bakStats.size)}`);
-        }
-        console.log(`[MSSQL Backup] Backup directo exitoso: ${formatBytes(bakStats.size)}`);
-      } catch (directErr: any) {
-        console.warn(`[MSSQL Backup] Directo falló: ${directErr.message}. Usando staging...`);
-
-        // Fallback: staging en D:\TemporaryFoldelSQL del servidor SQL
-        const stagingName = `noc_${Date.now()}_${fileName}`;
-        const stagingPath = `D:\\TemporaryFoldelSQL\\${stagingName}`;
-        const nasUncDir = job.destination_path.replace(/[/\\]$/, '');
-
-        await pool.request().query(`
-          BACKUP DATABASE [${job.database_name}] 
-          TO DISK = N'${stagingPath}' 
-          WITH FORMAT, CHECKSUM, COMPRESSION, INIT, 
-               NAME = N'${job.name} - Staging Backup', STATS = 10;
-        `);
-
-        // Copiar staging → NAS via xp_cmdshell (Windows → Windows)
-        const copyCmd = `copy /Y "${stagingPath}" "${nasUncDir}\\${fileName}"`;
-        console.log(`[MSSQL Backup] Copiando: ${copyCmd}`);
-        await pool.request().query(`EXEC xp_cmdshell '${copyCmd.replace(/'/g, "''")}'`);
-
-        // Limpiar staging
-        await pool.request().query(`EXEC xp_cmdshell 'del "${stagingPath}"'`).catch(() => {});
-
-        let stagingVisible = false;
-        for (let attempt = 0; attempt < 10; attempt++) {
-          try { fs.readdirSync(path.dirname(bakLocalPath)); } catch {}
-          if (fs.existsSync(bakLocalPath)) { stagingVisible = true; break; }
-          await new Promise(r => setTimeout(r, 3000));
-        }
-        if (!stagingVisible) {
-          throw new Error(`Archivo no visible en contenedor después de copy: ${bakLocalPath}`);
+      // Paso 2: Autenticar SQL Server al NAS con net use
+      const nasPassword = job.nas_password_encrypted ? decrypt(job.nas_password_encrypted) : '';
+      const nasUser = job.nas_username || 'administrator';
+      
+      if (nasPassword) {
+        console.log(`[MSSQL Backup] Paso 2: Autenticando al NAS con net use...`);
+        try {
+          // Desconectar conexión previa si existe
+          await pool.request().query(`EXEC xp_cmdshell 'net use "${nasUncShare}" /delete /y'`).catch(() => {});
+          // Conectar con credenciales
+          const netUseCmd = `net use "${nasUncShare}" "${nasPassword}" /user:${nasUser}`;
+          const netResult = await pool.request().query(`EXEC xp_cmdshell '${netUseCmd.replace(/'/g, "''")}'`);
+          const netOutput = netResult.recordset?.map((r: any) => r.output).filter(Boolean).join('\n') || '';
+          console.log(`[MSSQL Backup] net use resultado: ${netOutput}`);
+        } catch (netErr: any) {
+          console.warn(`[MSSQL Backup] net use falló: ${netErr.message} (continuando de todos modos)`);
         }
       }
+
+      // Paso 3: Asegurar que el directorio destino existe en el NAS
+      if (nasSubPath) {
+        const mkdirCmd = `if not exist "${nasUncDir}" mkdir "${nasUncDir}"`;
+        await pool.request().query(`EXEC xp_cmdshell '${mkdirCmd.replace(/'/g, "''")}'`).catch(() => {});
+      }
+
+      // Paso 4: Copiar staging → NAS via xp_cmdshell
+      const copyCmd = `copy /Y "${stagingPath}" "${nasUncDir}\\${fileName}"`;
+      console.log(`[MSSQL Backup] Paso 4: Copiando: ${copyCmd}`);
+      const copyResult = await pool.request().query(`EXEC xp_cmdshell '${copyCmd.replace(/'/g, "''")}'`);
+      const copyOutput = copyResult.recordset?.map((r: any) => r.output).filter(Boolean).join('\n') || '';
+      console.log(`[MSSQL Backup] Copy resultado: ${copyOutput}`);
+
+      // Verificar si el copy reportó error
+      if (copyOutput.toLowerCase().includes('error') || copyOutput.toLowerCase().includes('no se encuentra') || copyOutput.toLowerCase().includes('cannot find')) {
+        throw new Error(`xp_cmdshell copy falló: ${copyOutput}`);
+      }
+
+      // Paso 5: Limpiar staging
+      await pool.request().query(`EXEC xp_cmdshell 'del "${stagingPath}"'`).catch(() => {});
+
+      // Paso 6: Verificar que el archivo es visible desde el contenedor vía CIFS
+      let fileVisible = false;
+      for (let attempt = 0; attempt < 15; attempt++) {
+        try { fs.readdirSync(path.dirname(bakLocalPath)); } catch {}
+        if (fs.existsSync(bakLocalPath)) {
+          const sz = fs.statSync(bakLocalPath).size;
+          if (sz > 1024) { fileVisible = true; break; }
+        }
+        console.log(`[MSSQL Backup] Archivo no visible aún en CIFS, reintentando (${attempt + 1}/15)...`);
+        await new Promise(r => setTimeout(r, 2000));
+      }
+
+      if (!fileVisible) {
+        // Último intento: verificar directamente desde SQL Server
+        const verifyCmd = `dir "${nasUncDir}\\${fileName}"`;
+        const verifyResult = await pool.request().query(`EXEC xp_cmdshell '${verifyCmd.replace(/'/g, "''")}'`).catch(() => null);
+        const verifyOutput = verifyResult?.recordset?.map((r: any) => r.output).filter(Boolean).join('\n') || 'No se pudo verificar';
+        throw new Error(`Archivo no visible en contenedor después de 30s. El resultado de dir en SQL Server: ${verifyOutput}. Ruta CIFS: ${bakLocalPath}`);
+      }
+
+      console.log(`[MSSQL Backup] Archivo verificado en CIFS: ${formatBytes(fs.statSync(bakLocalPath).size)}`);
     } else {
       // Destino local (no UNC)
       await pool.request().query(`
