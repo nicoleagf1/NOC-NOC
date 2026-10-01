@@ -463,17 +463,17 @@ export default function RespaldosPage() {
                   </button>
                   <button
                     onClick={() => handleRunNow(selectedJob.id)}
-                    disabled={runningJobs.has(selectedJob.id)}
+                    disabled={runningJobs.has(selectedJob.id) || selectedJob.last_backup_status === "RUNNING"}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-vepagos-green rounded-lg hover:bg-vepagos-green-deep transition-colors disabled:opacity-50"
                   >
-                    {runningJobs.has(selectedJob.id) ? (
+                    {(runningJobs.has(selectedJob.id) || selectedJob.last_backup_status === "RUNNING") ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
                       <Play className="w-3.5 h-3.5" />
                     )}
                     Ejecutar Ahora
                   </button>
-                  {runningJobs.has(selectedJob.id) && (
+                  {(runningJobs.has(selectedJob.id) || selectedJob.last_backup_status === "RUNNING") && (
                     <button
                       onClick={() => handleCancelJob(selectedJob.id)}
                       className="p-1.5 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
