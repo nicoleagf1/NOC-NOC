@@ -172,16 +172,16 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
         port: editingJob.port || 5432,
         database_name: editingJob.database_name || "",
         db_username: editingJob.db_username || "",
-        db_password: "", // nunca se recibe la contraseña real
+        db_password: editingJob.db_password || "",
         use_ssh_tunnel: editingJob.use_ssh_tunnel || false,
         ssh_host: editingJob.ssh_host || "",
         ssh_port: editingJob.ssh_port || 22,
         ssh_username: editingJob.ssh_username || "",
-        ssh_password: "",
+        ssh_password: editingJob.ssh_password || "",
         destination_type: editingJob.destination_type || "nas",
         destination_path: editingJob.destination_path || "",
         nas_username: editingJob.nas_username || "",
-        nas_password: "",
+        nas_password: editingJob.nas_password || "",
         schedule_hour: hour,
         schedule_minute: minute,
         schedule_days: days,
@@ -372,31 +372,19 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
       use_ssh_tunnel: form.use_ssh_tunnel,
     };
 
-    // Solo enviar contraseñas si se proporcionaron (edición: vacío = mantener la existente)
-    if (form.db_password.trim()) {
-      payload.db_password = form.db_password;
-    } else if (isEditing) {
-      payload.db_password = "••••••••"; // enviar máscara = backend conserva la original
-    }
+    // Enviar contraseñas (siempre se envían porque el campo se pre-llena con la contraseña real)
+    payload.db_password = form.db_password;
 
     if (form.use_ssh_tunnel) {
       payload.ssh_host = form.ssh_host.trim();
       payload.ssh_port = form.ssh_port;
       payload.ssh_username = form.ssh_username.trim();
-      if (form.ssh_password.trim()) {
-        payload.ssh_password = form.ssh_password;
-      } else if (isEditing) {
-        payload.ssh_password = "••••••••";
-      }
+      payload.ssh_password = form.ssh_password;
     }
 
     // NAS credentials
     payload.nas_username = form.nas_username.trim() || null;
-    if (form.nas_password.trim()) {
-      payload.nas_password = form.nas_password;
-    } else if (isEditing) {
-      payload.nas_password = "••••••••";
-    }
+    payload.nas_password = form.nas_password || null;
 
     try {
       const url = isEditing
@@ -527,7 +515,7 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">
-                  Contraseña {isEditing ? "(dejar vacío = mantener)" : "*"}
+                  Contraseña *
                 </label>
                 <div className="relative">
                   <input
@@ -595,7 +583,7 @@ export default function BackupJobModal({ isOpen, editingJob, onClose, onSaved }:
                   </div>
                   <div className="col-span-4">
                     <label className="block text-xs text-gray-500 mb-1">
-                      Contraseña SSH {isEditing ? "(dejar vacío = mantener)" : "*"}
+                      Contraseña SSH *
                     </label>
                     <div className="relative w-1/2">
                       <input

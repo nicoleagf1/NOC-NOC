@@ -1,15 +1,32 @@
 import { NextResponse } from 'next/server';
 import { backupJobService } from '@/lib/services/backupJobService';
-import { encrypt } from '@/lib/security';
+import { encrypt, decrypt } from '@/lib/security';
 
 /**
  * GET /api/backups/jobs
- * Obtiene todos los trabajos con el estado de su última ejecución
+ * Obtiene todos los trabajos con el estado de su última ejecución.
+ * Incluye contraseñas descifradas para que el panel de administración
+ * pueda mostrarlas con el botón de ojito.
  */
 export async function GET() {
   try {
     const jobs = await backupJobService.getAllJobs();
-    return NextResponse.json(jobs);
+
+    // Descifrar contraseñas para el frontend
+    const jobsWithPasswords = jobs.map((job: any) => {
+      try {
+        return {
+          ...job,
+          db_password: job.db_password_encrypted ? decrypt(job.db_password_encrypted) : '',
+          ssh_password: job.ssh_password_encrypted ? decrypt(job.ssh_password_encrypted) : '',
+          nas_password: job.nas_password_encrypted ? decrypt(job.nas_password_encrypted) : '',
+        };
+      } catch {
+        return { ...job, db_password: '', ssh_password: '', nas_password: '' };
+      }
+    });
+
+    return NextResponse.json(jobsWithPasswords);
   } catch (error: any) {
     console.error('Error fetching backup jobs:', error);
     return NextResponse.json({ error: 'Error al consultar trabajos de respaldo' }, { status: 500 });
