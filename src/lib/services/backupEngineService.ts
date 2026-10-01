@@ -389,141 +389,117 @@ async function backupMSSQL(job: BackupJob): Promise<{ filePath: string; sizeByte
   const destDir = resolveDestPath(job.destination_path);
   await ensureNasAccess(job);
   ensureDir(destDir);
-  const finalFilePath = path.join(destDir, fileName);
 
   const dbPassword = job.db_password_encrypted ? decrypt(job.db_password_encrypted) : '';
+  const isUNC = job.destination_path.startsWith('\\');
 
-  // Configuración de conexión a SQL Server
   const config: mssql.config = {
     server: job.host,
     port: job.port || 1433,
     user: job.db_username,
     password: dbPassword,
-    domain: '.', // NTLM Windows Authentication
+    domain: '.',
     database: job.database_name,
-    options: {
-      encrypt: false,
-      trustServerCertificate: true,
-    },
-    requestTimeout: 600000, // 10 minutos para bases grandes
+    options: { encrypt: false, trustServerCertificate: true },
+    requestTimeout: 1800000, // 30 min para bases grandes
     connectionTimeout: 30000,
   };
 
   const pool = await mssql.connect(config);
 
-  // Intentar primero directamente a la ruta configurada (por si el servidor SQL tuviera acceso directo al share)
-  // Si falla con error de red/ruta, usar el directorio staging en D:\TemporaryFoldelSQL
-  const stagingFileName = `noc_${Date.now()}_${fileName}`;
-  const stagingSqlPath = `D:\\TemporaryFoldelSQL\\${stagingFileName}`;
-  const uncStagingSource = `\\\\${job.host}\\D$\\TemporaryFoldelSQL\\${stagingFileName}`;
-
   try {
-    let backupSuccessfulDirect = false;
+    const bakLocalPath = path.join(destDir, fileName);
 
-    try {
-      const directQuery = `
-        BACKUP DATABASE [${job.database_name}] 
-        TO DISK = N'${finalFilePath.replace(/\\/g, '\\\\')}' 
-        WITH FORMAT, 
-             CHECKSUM, 
-             COMPRESSION, 
-             INIT, 
-             NAME = N'${job.name} - Full Backup',
-             STATS = 10;
-      `;
-      await pool.request().query(directQuery);
-      if (fs.existsSync(finalFilePath)) {
-        backupSuccessfulDirect = true;
-      }
-    } catch (directErr: any) {
-      console.warn(`[MSSQL Backup] Intento directo a ${finalFilePath} falló (${directErr.message}). Utilizando staging en ${stagingSqlPath}...`);
-    }
+    if (isUNC) {
+      // SQL Server es Windows → puede escribir directamente al NAS via UNC
+      const nasUncBakPath = job.destination_path.replace(/[/\\]$/, '') + '\\' + fileName;
 
-    let resultFilePath = finalFilePath;
-
-    if (!backupSuccessfulDirect) {
-      // Ejecutar backup en el staging local del servidor SQL
-      const stagingQuery = `
-        BACKUP DATABASE [${job.database_name}] 
-        TO DISK = N'${stagingSqlPath}' 
-        WITH FORMAT, 
-             CHECKSUM, 
-             COMPRESSION, 
-             INIT, 
-             NAME = N'${job.name} - Staging Backup',
-             STATS = 10;
-      `;
-      await pool.request().query(stagingQuery);
-
-      if (job.compression_format === '7z') {
-        const sevenZipPath = finalFilePath.replace(/\.bak$/, '.7z');
-        console.log(`[MSSQL Backup] Comprimiendo archivo staging a 7-Zip destino: ${sevenZipPath}`);
-        await sevenZipFile(uncStagingSource, sevenZipPath);
-        resultFilePath = sevenZipPath;
-      } else if (job.compression_format === 'zip') {
-        const zipPath = finalFilePath.replace(/\.bak$/, '.zip');
-        console.log(`[MSSQL Backup] Comprimiendo archivo staging a ZIP destino: ${zipPath}`);
-        await zipFile(uncStagingSource, zipPath, fileName);
-        resultFilePath = zipPath;
-      } else if (job.compression_format === 'gzip') {
-        const gzPath = `${finalFilePath}.gz`;
-        console.log(`[MSSQL Backup] Comprimiendo archivo staging a GZIP destino: ${gzPath}`);
-        const source = fs.createReadStream(uncStagingSource);
-        const destination = fs.createWriteStream(gzPath);
-        const gzip = zlib.createGzip({ level: 6 });
-        await pipeline(source, gzip, destination);
-        resultFilePath = gzPath;
-      } else {
-        // Sin compresión adicional (.bak)
-        await fs.promises.copyFile(uncStagingSource, finalFilePath);
-        resultFilePath = finalFilePath;
-      }
-
-      // Eliminar el archivo de staging del servidor SQL
       try {
-        if (fs.existsSync(uncStagingSource)) {
-          fs.unlinkSync(uncStagingSource);
+        console.log(`[MSSQL Backup] Backup directo al NAS: ${nasUncBakPath}`);
+        await pool.request().query(`
+          BACKUP DATABASE [${job.database_name}] 
+          TO DISK = N'${nasUncBakPath}' 
+          WITH FORMAT, CHECKSUM, COMPRESSION, INIT, 
+               NAME = N'${job.name} - Full Backup', STATS = 10;
+        `);
+
+        if (!fs.existsSync(bakLocalPath)) {
+          throw new Error('Archivo no visible desde contenedor después de backup directo');
         }
-      } catch (cleanErr: any) {
-        await pool.request().query(`EXEC xp_cmdshell 'del "${stagingSqlPath}"'`).catch(() => {});
+        const bakStats = fs.statSync(bakLocalPath);
+        if (bakStats.size < 1024) {
+          throw new Error(`Archivo .bak demasiado pequeño: ${formatBytes(bakStats.size)}`);
+        }
+        console.log(`[MSSQL Backup] Backup directo exitoso: ${formatBytes(bakStats.size)}`);
+      } catch (directErr: any) {
+        console.warn(`[MSSQL Backup] Directo falló: ${directErr.message}. Usando staging...`);
+
+        // Fallback: staging en D:\TemporaryFoldelSQL del servidor SQL
+        const stagingName = `noc_${Date.now()}_${fileName}`;
+        const stagingPath = `D:\\TemporaryFoldelSQL\\${stagingName}`;
+        const nasUncDir = job.destination_path.replace(/[/\\]$/, '');
+
+        await pool.request().query(`
+          BACKUP DATABASE [${job.database_name}] 
+          TO DISK = N'${stagingPath}' 
+          WITH FORMAT, CHECKSUM, COMPRESSION, INIT, 
+               NAME = N'${job.name} - Staging Backup', STATS = 10;
+        `);
+
+        // Copiar staging → NAS via xp_cmdshell (Windows → Windows)
+        const copyCmd = `copy /Y "${stagingPath}" "${nasUncDir}\\${fileName}"`;
+        console.log(`[MSSQL Backup] Copiando: ${copyCmd}`);
+        await pool.request().query(`EXEC xp_cmdshell '${copyCmd.replace(/'/g, "''")}'`);
+
+        // Limpiar staging
+        await pool.request().query(`EXEC xp_cmdshell 'del "${stagingPath}"'`).catch(() => {});
+
+        if (!fs.existsSync(bakLocalPath)) {
+          throw new Error(`Archivo no visible en contenedor: ${bakLocalPath}`);
+        }
       }
     } else {
-      // Se ejecutó directo en destino final: si se pidió compresión, comprimir ahora
-      if (job.compression_format === '7z') {
-        const sevenZipPath = finalFilePath.replace(/\.bak$/, '.7z');
-        console.log(`[MSSQL Backup] Comprimiendo backup a 7-Zip: ${sevenZipPath}`);
-        await sevenZipFile(finalFilePath, sevenZipPath);
-        resultFilePath = sevenZipPath;
-      } else if (job.compression_format === 'zip') {
-        const zipPath = finalFilePath.replace(/\.bak$/, '.zip');
-        console.log(`[MSSQL Backup] Comprimiendo backup a ZIP: ${zipPath}`);
-        await zipFile(finalFilePath, zipPath, fileName);
-        resultFilePath = zipPath;
-      } else if (job.compression_format === 'gzip') {
-        const gzPath = `${finalFilePath}.gz`;
-        console.log(`[MSSQL Backup] Comprimiendo backup a GZIP: ${gzPath}`);
-        const source = fs.createReadStream(finalFilePath);
-        const destination = fs.createWriteStream(gzPath);
-        const gzip = zlib.createGzip({ level: 6 });
-        await pipeline(source, gzip, destination);
-        try {
-          if (fs.existsSync(finalFilePath)) fs.unlinkSync(finalFilePath);
-        } catch (cleanErr) {}
-        resultFilePath = gzPath;
-      }
+      // Destino local (no UNC)
+      await pool.request().query(`
+        BACKUP DATABASE [${job.database_name}] 
+        TO DISK = N'${bakLocalPath.replace(/\//g, '\\\\')}' 
+        WITH FORMAT, CHECKSUM, COMPRESSION, INIT, 
+             NAME = N'${job.name} - Full Backup', STATS = 10;
+      `);
+    }
+
+    // Comprimir si se pidió
+    let resultFilePath = bakLocalPath;
+
+    if (job.compression_format === '7z') {
+      const out = bakLocalPath.replace(/\.bak$/, '.7z');
+      await sevenZipFile(bakLocalPath, out);
+      resultFilePath = out;
+    } else if (job.compression_format === 'zip') {
+      const out = bakLocalPath.replace(/\.bak$/, '.zip');
+      await zipFile(bakLocalPath, out, fileName);
+      resultFilePath = out;
+    } else if (job.compression_format === 'gzip') {
+      const out = `${bakLocalPath}.gz`;
+      await pipeline(fs.createReadStream(bakLocalPath), zlib.createGzip({ level: 6 }), fs.createWriteStream(out));
+      try { fs.unlinkSync(bakLocalPath); } catch {}
+      resultFilePath = out;
     }
 
     if (!fs.existsSync(resultFilePath)) {
-      throw new Error(`El archivo de backup no fue generado en: ${resultFilePath}`);
+      throw new Error(`Archivo final no generado: ${resultFilePath}`);
     }
 
     const stats = fs.statSync(resultFilePath);
+    if (stats.size < 1024) {
+      throw new Error(`Backup MSSQL corrupto: solo ${formatBytes(stats.size)}`);
+    }
+
     return { filePath: resultFilePath, sizeBytes: stats.size };
   } finally {
     await pool.close();
   }
 }
-
 // ──────────────────────────────────────────────────────────────────────────────
 // PostgreSQL (pg_dump vía SSH o local)
 // ──────────────────────────────────────────────────────────────────────────────
