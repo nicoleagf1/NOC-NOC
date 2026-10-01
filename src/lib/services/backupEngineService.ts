@@ -423,8 +423,20 @@ async function backupMSSQL(job: BackupJob): Promise<{ filePath: string; sizeByte
                NAME = N'${job.name} - Full Backup', STATS = 10;
         `);
 
-        if (!fs.existsSync(bakLocalPath)) {
-          throw new Error('Archivo no visible desde contenedor después de backup directo');
+        // Esperar a que el archivo sea visible en el montaje CIFS (cache latency)
+        let fileVisible = false;
+        for (let attempt = 0; attempt < 10; attempt++) {
+          try { fs.readdirSync(path.dirname(bakLocalPath)); } catch {}
+          if (fs.existsSync(bakLocalPath)) {
+            fileVisible = true;
+            break;
+          }
+          console.log(`[MSSQL Backup] Archivo no visible aún, reintentando (${attempt + 1}/10)...`);
+          await new Promise(r => setTimeout(r, 3000));
+        }
+
+        if (!fileVisible) {
+          throw new Error(`Archivo no visible desde contenedor después de backup directo. Ruta: ${bakLocalPath}`);
         }
         const bakStats = fs.statSync(bakLocalPath);
         if (bakStats.size < 1024) {
@@ -454,8 +466,14 @@ async function backupMSSQL(job: BackupJob): Promise<{ filePath: string; sizeByte
         // Limpiar staging
         await pool.request().query(`EXEC xp_cmdshell 'del "${stagingPath}"'`).catch(() => {});
 
-        if (!fs.existsSync(bakLocalPath)) {
-          throw new Error(`Archivo no visible en contenedor: ${bakLocalPath}`);
+        let stagingVisible = false;
+        for (let attempt = 0; attempt < 10; attempt++) {
+          try { fs.readdirSync(path.dirname(bakLocalPath)); } catch {}
+          if (fs.existsSync(bakLocalPath)) { stagingVisible = true; break; }
+          await new Promise(r => setTimeout(r, 3000));
+        }
+        if (!stagingVisible) {
+          throw new Error(`Archivo no visible en contenedor después de copy: ${bakLocalPath}`);
         }
       }
     } else {
