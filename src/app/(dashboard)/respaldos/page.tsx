@@ -476,11 +476,10 @@ export default function RespaldosPage() {
                   {runningJobs.has(selectedJob.id) && (
                     <button
                       onClick={() => handleCancelJob(selectedJob.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                      className="p-1.5 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
                       title="Detener ejecución"
                     >
-                      <StopCircle className="w-3.5 h-3.5" />
-                      Detener
+                      <StopCircle className="w-4 h-4" />
                     </button>
                   )}
                   <button
