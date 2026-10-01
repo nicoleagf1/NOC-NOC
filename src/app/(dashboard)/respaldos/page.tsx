@@ -438,7 +438,7 @@ export default function RespaldosPage() {
                   </button>
                   <button
                     onClick={() => handleRunNow(selectedJob.id)}
-                    disabled={runningJobs.has(selectedJob.id) || !selectedJob.is_active}
+                    disabled={runningJobs.has(selectedJob.id)}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-vepagos-green rounded-lg hover:bg-vepagos-green-deep transition-colors disabled:opacity-50"
                   >
                     {runningJobs.has(selectedJob.id) ? (
