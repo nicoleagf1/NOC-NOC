@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, AlertCircle, Activity, Bell, BarChart3, ShieldCheck, Radar, Copy, Check, Key } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Activity, Bell, BarChart3, ShieldCheck, Copy, Check, Key } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,7 +25,7 @@ export default function LoginPage() {
     fetch("/api/settings/public-utilities")
       .then(res => res.json())
       .then(data => setPublicUtilitiesEnabled(data.enabled))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // States para Formulario de Login
@@ -200,15 +200,15 @@ export default function LoginPage() {
         }
       `}</style>
       {/* Panel Izquierdo - Identidad Vepagos */}
-      <div className="w-full md:w-[50%] bg-gradient-to-b from-[#001F60] to-[#0A1635] flex flex-col justify-between p-10 lg:p-16 xl:p-24 relative overflow-hidden order-1 md:order-1">
+      <div className="w-full md:w-[50%] bg-[#001035] flex flex-col justify-between p-10 lg:p-16 xl:p-24 relative overflow-hidden order-1 md:order-1">
+        {/* Imagen de Fondo NOC-NOC con candado tecnológico */}
+        <div
+          className="absolute inset-0 bg-cover bg-left md:bg-left-top bg-no-repeat pointer-events-none select-none"
+          style={{ backgroundImage: "url('/fondo%20noc-01.png')" }}
+        />
 
-        {/* Radar / HUD Decorativo */}
-        <div className="absolute -bottom-[20%] -left-[10%] opacity-20 pointer-events-none select-none">
-          <Radar className="w-[400px] h-[400px] text-[#00CE7C] stroke-[0.5]" />
-          <div className="absolute inset-0 rounded-full border border-[#00CE7C]/30 animate-[ping_4s_cubic-bezier(0,0,0.2,1)_infinite]"></div>
-          <div className="absolute inset-8 rounded-full border border-[#00CE7C]/20"></div>
-          <div className="absolute inset-16 rounded-full border border-[#00CE7C]/10"></div>
-        </div>
+        {/* Overlay degradado sutil para asegurar contraste y legibilidad óptima */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#001035]/20 to-[#001035]/60 pointer-events-none select-none" />
 
         {/* Decorativo: Grilla sutil en el fondo */}
         <div
@@ -216,19 +216,23 @@ export default function LoginPage() {
           style={{ backgroundImage: "linear-gradient(#00CE7C 1px, transparent 1px), linear-gradient(90deg, #00CE7C 1px, transparent 1px)", backgroundSize: "40px 40px" }}
         ></div>
 
-        <div className="relative z-10 flex flex-col h-full justify-center -mt-8 md:-mt-16 lg:-mt-24 xl:-mt-32 w-fit mx-auto">
+        <div className="relative z-10 flex flex-col h-full justify-center -mt-8 md:-mt-16 lg:-mt-24 xl:-mt-32 w-fit mx-auto translate-x-2 sm:translate-x-4 md:translate-x-12 lg:translate-x-16 xl:translate-x-20">
           {/* Logo y Encabezado */}
           <div className="mb-12">
             <img
               src="/logo.png"
               alt="Vepagos Logo"
-              className="w-auto h-auto max-w-[340px] max-h-[340px] object-contain mb-2 lg:mb-3"
+              className="w-auto h-auto max-w-[350px] max-h-[350px] object-contain mb-2 lg:mb-3"
             />
 
-            <h1 className="text-[48px] lg:text-[60px] font-barlow-condensed font-bold text-white tracking-[2px] leading-none mb-2">
-              NOC-NOC
+            <h1 className="leading-none">
+              <img
+                src="/logo%20noc-noc.png"
+                alt="NOC-NOC"
+                className="w-[340px] max-w-full h-auto object-contain select-none"
+              />
             </h1>
-            <p className="text-[20px] lg:text-[24px] font-barlow font-medium text-[#00CE7C] tracking-[4px] uppercase">
+            <p className="text-[20px] lg:text-[24px] font-barlow font-medium text-[#00CE7C] tracking-[4px] uppercase -mt-2 lg:-mt-3">
               Centro de Monitoreo
             </p>
           </div>
@@ -287,27 +291,27 @@ export default function LoginPage() {
 
           <div className="mb-10">
             <h2 className="text-[40px] md:text-[48px] font-barlow-condensed font-bold text-[#001F60] uppercase leading-none">
-              {isForgotPassword 
-                ? "RECUPERAR CONTRASEÑA" 
+              {isForgotPassword
+                ? "RECUPERAR CONTRASEÑA"
                 : requires2FASetup
-                ? "CONFIGURAR 2FA"
-                : requires2FA
-                ? "AUTENTICACIÓN 2FA"
-                : !requiresPasswordChange 
-                  ? "INICIAR SESIÓN" 
-                  : "ACTUALIZAR CONTRASEÑA"}
+                  ? "CONFIGURAR 2FA"
+                  : requires2FA
+                    ? "AUTENTICACIÓN 2FA"
+                    : !requiresPasswordChange
+                      ? "INICIAR SESIÓN"
+                      : "ACTUALIZAR CONTRASEÑA"}
             </h2>
             <div className="w-16 h-1 bg-[#00CE7C] mt-4 mb-4 rounded-full"></div>
             <p className="text-[16px] text-[#001F60] font-medium opacity-80">
               {requires2FASetup
                 ? "Por directiva institucional de seguridad (SEC-IAM-01), debe vincular un autenticador para completar el acceso."
                 : requires2FA
-                ? "Ingresa el código de 6 dígitos de tu aplicación autenticadora."
-                : isForgotPassword
-                ? "Ingresa tu usuario o correo para recibir las instrucciones."
-                : !requiresPasswordChange 
-                  ? "Ingresa tus credenciales para acceder a la plataforma NOC-NOC."
-                  : "Por seguridad, debe cambiar su contraseña predeterminada antes de continuar."}
+                  ? "Ingresa el código de 6 dígitos de tu aplicación autenticadora."
+                  : isForgotPassword
+                    ? "Ingresa tu usuario o correo para recibir las instrucciones."
+                    : !requiresPasswordChange
+                      ? "Ingresa tus credenciales para acceder a la plataforma NOC-NOC."
+                      : "Por seguridad, debe cambiar su contraseña predeterminada antes de continuar."}
             </p>
           </div>
 
@@ -380,11 +384,11 @@ export default function LoginPage() {
                   </label>
                   <button
                     type="button"
-                    onClick={(e) => { 
+                    onClick={(e) => {
                       e.preventDefault();
                       setTimeout(() => {
-                        setIsForgotPassword(true); 
-                        setError(null); 
+                        setIsForgotPassword(true);
+                        setError(null);
                         setIsLoading(false);
                       }, 50);
                     }}
@@ -442,7 +446,7 @@ export default function LoginPage() {
                 {setupQrCode ? (
                   <div className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded-[12px]">
                     <img src={setupQrCode} alt="Código QR 2FA" className="w-44 h-44 rounded-lg shadow-sm border border-white" />
-                    
+
                     {setupSecret && (
                       <div className="mt-2 w-full text-center">
                         <span className="text-[11px] text-gray-500 font-mono block">¿No puede escanear? Clave manual:</span>
@@ -531,7 +535,7 @@ export default function LoginPage() {
                     className="w-full h-[52px] px-4 bg-white border-[1.5px] border-[#E5E9F2] rounded-[10px] text-[24px] text-center tracking-[0.5em] text-[#001F60] placeholder:text-[#6E7B99] placeholder:tracking-normal focus:outline-none focus:border-[#00CE7C] focus:ring-[3px] focus:ring-[#00CE7C]/10 transition-all duration-200"
                   />
                 </div>
-                
+
                 <div className="pt-2">
                   <button
                     type="submit"
@@ -542,10 +546,10 @@ export default function LoginPage() {
                     {!isLoading && <span className="ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200">→</span>}
                   </button>
                 </div>
-                
+
                 <div className="flex items-center justify-center pt-4">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => { setRequires2FA(false); setTwoFactorCode(""); setError(null); }}
                     className="text-[14px] font-barlow-condensed font-bold text-[#001F60] hover:text-[#00CE7C] transition-colors tracking-wide uppercase underline"
                   >
@@ -561,7 +565,7 @@ export default function LoginPage() {
                     {forgotMessage}
                   </div>
                 )}
-                
+
                 <div className="flex flex-col space-y-2">
                   <label className="text-[14px] font-barlow-condensed font-bold text-[#001F60] uppercase tracking-wide">
                     USUARIO O CORREO
@@ -586,15 +590,15 @@ export default function LoginPage() {
                     {!isLoading && <span className="ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200">→</span>}
                   </button>
                 </div>
-                
+
                 <div className="flex items-center justify-center pt-4">
-                  <button 
-                    type="button" 
-                    onClick={(e) => { 
+                  <button
+                    type="button"
+                    onClick={(e) => {
                       e.preventDefault();
                       setTimeout(() => {
-                        setIsForgotPassword(false); 
-                        setForgotMessage(null); 
+                        setIsForgotPassword(false);
+                        setForgotMessage(null);
                         setError(null);
                         setIsLoading(false);
                       }, 50);
